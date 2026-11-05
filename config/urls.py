@@ -21,5 +21,6 @@ from contas.views import dashboard_redirect
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('contas/', include('contas.urls')),
+    path('equipamentos/', include('equipamentos.urls')),
     path('', dashboard_redirect, name='home'),
 ]

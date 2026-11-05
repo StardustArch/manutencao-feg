@@ -11,6 +11,11 @@
         <nav>
             <ul>
                 <li><strong>UCM-FEG Manutenção</strong></li>
+                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
+                {% if request.user.is_superuser or request.user.perfil.papel == "tecnico" or request.user.perfil.papel == "admin" %}
+                    <li><a href="{% url 'equipamentos:avarias_lista' %}">Avarias</a></li>
+                    <li><a href="{% url 'equipamentos:dashboard' %}">Dashboard</a></li>
+                {% endif %}
             </ul>
             <ul>
                 <li>Olá, <strong>{{ request.user.username }}</strong> 

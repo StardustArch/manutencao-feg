@@ -1,0 +1,159 @@
+<section id="avarias-conteudo" aria-live="polite">
+    <div class="grid resumo-avarias">
+        <article class="resumo-pendente">
+            <small>Pendentes</small>
+            <strong>{{ resumo.pendentes }}</strong>
+        </article>
+        <article class="resumo-reparacao">
+            <small>Em reparação</small>
+            <strong>{{ resumo.em_reparacao }}</strong>
+        </article>
+        <article class="resumo-resolvida">
+            <small>Resolvidas</small>
+            <strong>{{ resumo.resolvidas }}</strong>
+        </article>
+        <article class="resumo-urgente">
+            <small>Urgentes abertas</small>
+            <strong>{{ resumo.urgentes_abertas }}</strong>
+        </article>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mensagem mensagem-{{ message.tags }}" role="status">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <article>
+        <header>
+            <strong>{{ avarias|length }} avaria{{ avarias|length|pluralize:"s" }}</strong>
+            {% if estado_atual or prioridade_atual %}
+                <small class="texto-suave">
+                    — filtros aplicados
+                    {% if estado_atual %}(estado: {{ estado_atual_display }}){% endif %}
+                    {% if prioridade_atual %}(prioridade: {{ prioridade_atual_display }}){% endif %}
+                </small>
+            {% endif %}
+        </header>
+
+        <div style="overflow-x: auto;">
+            <table class="striped tabela-avarias">
+                <thead>
+                    <tr>
+                        <th scope="col">Avaria / Equipamento</th>
+                        <th scope="col">Descrição</th>
+                        <th scope="col">Prioridade</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Técnico</th>
+                        <th scope="col">Registo</th>
+                        <th scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for avaria in avarias %}
+                        {% url 'equipamentos:avaria_assumir' avaria.pk as url_assumir %}
+                        {% url 'equipamentos:avaria_alterar_estado' avaria.pk as url_estado %}
+                        <tr id="avaria-{{ avaria.pk }}">
+                            <td>
+                                <strong>#{{ avaria.pk }}</strong><br>
+                                <small><strong>{{ avaria.equipamento.codigo }}</strong></small><br>
+                                <small>{{ avaria.equipamento.marca_modelo }}</small>
+                            </td>
+                            <td>
+                                {{ avaria.descricao|truncatechars:110 }}
+                                <br>
+                                <small class="texto-suave">
+                                    Reportada por
+                                    {{ avaria.reportado_por.username|default:"—" }}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ avaria.prioridade }}">
+                                    {{ avaria.get_prioridade_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-{{ avaria.estado }}">
+                                    {{ avaria.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if avaria.tecnico_atribuido %}
+                                    {{ avaria.tecnico_atribuido.username }}
+                                {% else %}
+                                    <em class="texto-suave">Não atribuída</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ avaria.data_registo|date:"d/m/Y H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="acoes-avaria">
+                                    {% if avaria.estado == "pendente" or avaria.estado == "em_reparacao" %}
+                                        {% if not avaria.tecnico_atribuido %}
+                                            <!--
+                                                POST assíncrono para o técnico se atribuir a si próprio.
+                                                O ?filtros... preserva os filtros ativos na resposta do HTMX.
+                                            -->
+                                            <form method="post"
+                                                  action="{{ url_assumir }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
+                                                  hx-post="{{ url_assumir }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
+                                                  hx-target="#avarias-conteudo"
+                                                  hx-swap="outerHTML">
+                                                {% csrf_token %}
+                                                <button type="submit" class="outline" hx-disabled-elt="this">
+                                                    Assumir avaria
+                                                </button>
+                                            </form>
+                                        {% elif avaria.tecnico_atribuido == request.user or e_admin %}
+                                            {% if avaria.proximos_estados %}
+                                                <!--
+                                                    O select envia automaticamente ao mudar (hx-trigger="change").
+                                                    O botão "Aplicar" serve de fallback sem JavaScript.
+                                                -->
+                                                <form method="post"
+                                                      action="{{ url_estado }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
+                                                      hx-post="{{ url_estado }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
+                                                      hx-trigger="change, submit"
+                                                      hx-target="#avarias-conteudo"
+                                                      hx-swap="outerHTML">
+                                                    {% csrf_token %}
+                                                    <select name="estado" aria-label="Alterar estado da avaria #{{ avaria.pk }}">
+                                                        <option value="" selected disabled>Alterar estado…</option>
+                                                        {% for valor, rotulo in avaria.proximos_estados %}
+                                                            <option value="{{ valor }}">{{ rotulo }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                    <button type="submit" class="outline">Aplicar</button>
+                                                </form>
+                                            {% else %}
+                                                <small class="texto-suave">Sem transições disponíveis.</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <small class="texto-suave">
+                                                Atribuída a {{ avaria.tecnico_atribuido.username }}.
+                                            </small>
+                                        {% endif %}
+                                    {% else %}
+                                        <small class="texto-suave">Processo concluído.</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">
+                                <p><strong>Nenhuma avaria encontrada.</strong></p>
+                                <p class="texto-suave">
+                                    Experimenta limpar os filtros ou reportar uma nova avaria.
+                                </p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>

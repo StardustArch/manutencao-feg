@@ -1,3 +1,467 @@
-from django.shortcuts import render
+import io
+from functools import wraps
 
-# Create your views here.
+import qrcode
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.db.models import Case, Count, IntegerField, Q, Value, When
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.text import slugify
+from django.views.decorators.http import require_POST
+
+from .models import Avaria, Equipamento
+from .relatorios import gerar_relatorio_pdf
+
+# ---------------------------------------------------------------------------
+# Permissões
+# ---------------------------------------------------------------------------
+
+
+def _e_tecnico_ou_admin(user):
+    """Indica se o utilizador pertence à equipa técnica ou à administração."""
+    perfil = getattr(user, "perfil", None)
+    return user.is_superuser or (
+        perfil and perfil.papel in {"tecnico", "admin"}
+    )
+
+
+def tecnico_ou_admin_required(view_func):
+    """Permite o acesso apenas a técnicos, administradores ou superutilizadores.
+
+    É um decorador personalizado: junta o `login_required` (obriga a sessão
+    iniciada) com a verificação do papel guardado no modelo `Perfil`.
+    """
+
+    @login_required
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not _e_tecnico_ou_admin(request.user):
+            raise PermissionDenied(
+                "Apenas técnicos e administradores podem aceder a esta área."
+            )
+
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+def _e_admin(user):
+    """Indica se o utilizador tem privilégios de administração."""
+    perfil = getattr(user, "perfil", None)
+    return user.is_superuser or (perfil and perfil.papel == "admin")
+
+
+# ---------------------------------------------------------------------------
+# Contexto e respostas auxiliares
+# ---------------------------------------------------------------------------
+
+
+def _contexto_lista_avarias(request):
+    """Prepara todos os dados usados na listagem e no partial HTMX."""
+    estado = request.GET.get("estado", "").strip()
+    prioridade = request.GET.get("prioridade", "").strip()
+
+    estados_validos = dict(Avaria.ESTADO_AVARIA_CHOICES)
+    prioridades_validas = dict(Avaria.PRIORIDADE_CHOICES)
+
+    # Ignora valores manipulados no URL (?estado=xyz), por segurança.
+    if estado not in estados_validos:
+        estado = ""
+    if prioridade not in prioridades_validas:
+        prioridade = ""
+
+    avarias = Avaria.objects.select_related(
+        "equipamento",
+        "reportado_por",
+        "tecnico_atribuido",
+    ).annotate(
+        # Ordena por gravidade: urgente -> alta -> média -> baixa.
+        ordem_prioridade=Case(
+            When(prioridade="urgente", then=Value(0)),
+            When(prioridade="alta", then=Value(1)),
+            When(prioridade="media", then=Value(2)),
+            When(prioridade="baixa", then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    )
+
+    if estado:
+        avarias = avarias.filter(estado=estado)
+
+    if prioridade:
+        avarias = avarias.filter(prioridade=prioridade)
+
+    avarias = avarias.order_by("ordem_prioridade", "-data_registo")
+
+    resumo = {
+        "pendentes": Avaria.objects.filter(estado="pendente").count(),
+        "em_reparacao": Avaria.objects.filter(estado="em_reparacao").count(),
+        "resolvidas": Avaria.objects.filter(estado="resolvido").count(),
+        "urgentes_abertas": Avaria.objects.filter(
+            estado__in=["pendente", "em_reparacao"],
+            prioridade="urgente",
+        ).count(),
+    }
+
+    return {
+        "avarias": avarias,
+        "estados": Avaria.ESTADO_AVARIA_CHOICES,
+        "prioridades": Avaria.PRIORIDADE_CHOICES,
+        "estado_atual": estado,
+        "prioridade_atual": prioridade,
+        "estado_atual_display": estados_validos.get(estado, ""),
+        "prioridade_atual_display": prioridades_validas.get(prioridade, ""),
+        "resumo": resumo,
+        # Mantém os filtros ativos nos URLs das ações HTMX.
+        "filtros_querystring": request.GET.urlencode(),
+        "e_admin": _e_admin(request.user),
+    }
+
+
+def _render_lista_avarias(request):
+    """Devolve apenas o bloco que o HTMX substitui na página."""
+    return render(
+        request,
+        "equipamentos/partials/_avarias_conteudo.html",
+        _contexto_lista_avarias(request),
+    )
+
+
+def _redirecionar_para_lista(request):
+    """Fallback para pedidos normais (sem JavaScript/HTMX)."""
+    url = reverse("equipamentos:avarias_lista")
+    query = request.GET.urlencode()
+    return redirect(f"{url}?{query}" if query else url)
+
+
+def _responder_acao(request):
+    """Responde em HTML parcial para HTMX ou redireciona no modo tradicional."""
+    if request.headers.get("HX-Request"):
+        return _render_lista_avarias(request)
+    return _redirecionar_para_lista(request)
+
+
+def _atualizar_estado_equipamento(avaria, novo_estado):
+    """Mantém o estado do equipamento coerente com o estado da avaria."""
+    equipamento = avaria.equipamento
+
+    if novo_estado == "em_reparacao":
+        equipamento.estado = "manutencao"
+        equipamento.save(update_fields=["estado"])
+
+    elif novo_estado == "resolvido":
+        # Se ainda houver outra avaria aberta para o mesmo equipamento,
+        # ele continua avariado; caso contrário, volta a operacional.
+        existe_outra_aberta = (
+            equipamento.avarias.exclude(pk=avaria.pk)
+            .filter(estado__in=["pendente", "em_reparacao"])
+            .exists()
+        )
+        equipamento.estado = "avariado" if existe_outra_aberta else "operacional"
+        equipamento.save(update_fields=["estado"])
+
+
+# ---------------------------------------------------------------------------
+# Views
+# ---------------------------------------------------------------------------
+
+
+@tecnico_ou_admin_required
+def avarias_lista(request):
+    """Listagem de avarias com filtros por estado e prioridade."""
+    contexto = _contexto_lista_avarias(request)
+
+    # O HTMX só precisa do fragmento, não da página HTML completa.
+    if request.headers.get("HX-Request"):
+        return render(
+            request,
+            "equipamentos/partials/_avarias_conteudo.html",
+            contexto,
+        )
+
+    return render(request, "equipamentos/avarias_lista.html", contexto)
+
+
+@tecnico_ou_admin_required
+@require_POST
+def assumir_avaria(request, pk):
+    """Atribui a avaria ao técnico autenticado e inicia a reparação."""
+    avaria = get_object_or_404(
+        Avaria.objects.select_related("equipamento", "tecnico_atribuido"),
+        pk=pk,
+    )
+
+    if avaria.estado in {"resolvido", "cancelado"}:
+        messages.error(request, "Esta avaria já está fechada e não pode ser assumida.")
+
+    elif avaria.tecnico_atribuido and avaria.tecnico_atribuido != request.user:
+        messages.error(
+            request,
+            f"Esta avaria já está atribuída a {avaria.tecnico_atribuido.username}.",
+        )
+
+    elif avaria.tecnico_atribuido == request.user:
+        messages.info(request, "Esta avaria já está atribuída a ti.")
+
+    else:
+        avaria.tecnico_atribuido = request.user
+
+        # Ao assumir uma avaria pendente, ela entra automaticamente em reparação.
+        if avaria.estado == "pendente":
+            avaria.estado = "em_reparacao"
+            _atualizar_estado_equipamento(avaria, "em_reparacao")
+
+        avaria.save()
+        messages.success(
+            request,
+            f"Avaria #{avaria.pk} assumida. Bom trabalho na reparação!",
+        )
+
+    return _responder_acao(request)
+
+
+@tecnico_ou_admin_required
+@require_POST
+def alterar_estado_avaria(request, pk):
+    """Altera o estado de uma avaria respeitando as transições permitidas."""
+    avaria = get_object_or_404(
+        Avaria.objects.select_related("equipamento", "tecnico_atribuido"),
+        pk=pk,
+    )
+    novo_estado = request.POST.get("estado", "").strip()
+
+    estados_validos = dict(Avaria.ESTADO_AVARIA_CHOICES)
+
+    if novo_estado not in estados_validos:
+        messages.error(request, "Estado inválido.")
+        return _responder_acao(request)
+
+    if novo_estado not in Avaria.TRANSICOES_ESTADO.get(avaria.estado, ()):
+        messages.error(
+            request,
+            (
+                f"Transição inválida: não é possível passar de "
+                f"{avaria.get_estado_display()} para "
+                f"{estados_validos[novo_estado]}."
+            ),
+        )
+        return _responder_acao(request)
+
+    # Um técnico só pode mexer em avarias que lhe estão atribuídas.
+    # O administrador pode gerir qualquer avaria.
+    if not _e_admin(request.user):
+        if (
+            avaria.tecnico_atribuido
+            and avaria.tecnico_atribuido != request.user
+        ):
+            messages.error(
+                request,
+                "Esta avaria está atribuída a outro técnico.",
+            )
+            return _responder_acao(request)
+
+        if novo_estado == "resolvido" and not avaria.tecnico_atribuido:
+            messages.error(
+                request,
+                "Atribui primeiro a avaria a um técnico antes de a resolver.",
+            )
+            return _responder_acao(request)
+
+    # Se um técnico iniciar a reparação de uma avaria ainda sem responsável,
+    # a atribuição é feita automaticamente.
+    if novo_estado == "em_reparacao" and not avaria.tecnico_atribuido:
+        avaria.tecnico_atribuido = request.user
+
+    avaria.estado = novo_estado
+    avaria.save()
+    _atualizar_estado_equipamento(avaria, novo_estado)
+
+    messages.success(
+        request,
+        f"Avaria #{avaria.pk} atualizada para {avaria.get_estado_display()}.",
+    )
+    return _responder_acao(request)
+
+
+@tecnico_ou_admin_required
+def dashboard_metricas(request):
+    """Dashboard com totais e distribuição de equipamentos e avarias por estado.
+
+    As contagens são calculadas com `values(...).annotate(Count(...))`, que
+    equivale a um `GROUP BY estado` em SQL. Assim evitamos uma consulta por
+    cada estado e mantemos a view eficiente.
+    """
+    estados_equipamento = dict(Equipamento.ESTADO_EQUIPAMENTO_CHOICES)
+    estados_avaria = dict(Avaria.ESTADO_AVARIA_CHOICES)
+
+    # Inicializa todos os estados com zero, para os gráficos nunca ficarem
+    # com posições em falta quando ainda não existem registos.
+    contagem_equipamentos = {estado: 0 for estado in estados_equipamento}
+    for linha in Equipamento.objects.values("estado").annotate(total=Count("id")):
+        if linha["estado"] in contagem_equipamentos:
+            contagem_equipamentos[linha["estado"]] = linha["total"]
+
+    contagem_avarias = {estado: 0 for estado in estados_avaria}
+    for linha in Avaria.objects.values("estado").annotate(total=Count("id")):
+        if linha["estado"] in contagem_avarias:
+            contagem_avarias[linha["estado"]] = linha["total"]
+
+    # O gráfico de barras mostra apenas os três estados pedidos no Passo 6.
+    estados_avaria_grafico = ("pendente", "em_reparacao", "resolvido")
+
+    contexto = {
+        "total_equipamentos": Equipamento.objects.count(),
+        "total_avarias": Avaria.objects.count(),
+        "equipamentos_por_estado": contagem_equipamentos,
+        "avarias_por_estado": contagem_avarias,
+        "avarias_abertas": (
+            contagem_avarias["pendente"] + contagem_avarias["em_reparacao"]
+        ),
+        # Estruturas preparadas para o Chart.js. O template usa `json_script`
+        # para as injetar no JavaScript de forma segura (sem concatenar HTML).
+        "grafico_equipamentos": {
+            "labels": [
+                estados_equipamento[estado] for estado in estados_equipamento
+            ],
+            "valores": [
+                contagem_equipamentos[estado] for estado in estados_equipamento
+            ],
+        },
+        "grafico_avarias": {
+            "labels": [
+                estados_avaria[estado] for estado in estados_avaria_grafico
+            ],
+            "valores": [
+                contagem_avarias[estado] for estado in estados_avaria_grafico
+            ],
+        },
+        "e_admin": _e_admin(request.user),
+    }
+
+    return render(request, "equipamentos/dashboard.html", contexto)
+
+
+# ---------------------------------------------------------------------------
+# Inventário, QR Codes e Relatórios PDF (Passo 7)
+# ---------------------------------------------------------------------------
+
+
+@login_required
+def equipamentos_lista(request):
+    """Inventário com pesquisa, filtro por estado e miniatura do QR code."""
+    pesquisa = request.GET.get("q", "").strip()
+    estado = request.GET.get("estado", "").strip()
+
+    estados_validos = dict(Equipamento.ESTADO_EQUIPAMENTO_CHOICES)
+    if estado not in estados_validos:
+        estado = ""
+
+    equipamentos = Equipamento.objects.annotate(
+        avarias_abertas=Count(
+            "avarias",
+            filter=Q(avarias__estado__in=["pendente", "em_reparacao"]),
+        )
+    )
+
+    if pesquisa:
+        equipamentos = equipamentos.filter(
+            Q(codigo__icontains=pesquisa)
+            | Q(marca_modelo__icontains=pesquisa)
+            | Q(localizacao__icontains=pesquisa)
+        )
+
+    if estado:
+        equipamentos = equipamentos.filter(estado=estado)
+
+    contexto = {
+        "equipamentos": equipamentos.order_by("codigo"),
+        "estados": Equipamento.ESTADO_EQUIPAMENTO_CHOICES,
+        "estado_atual": estado,
+        "estado_atual_display": estados_validos.get(estado, ""),
+        "pesquisa": pesquisa,
+        "e_tecnico_ou_admin": _e_tecnico_ou_admin(request.user),
+    }
+    return render(request, "equipamentos/equipamentos_lista.html", contexto)
+
+
+@login_required
+def equipamento_detalhe(request, pk):
+    """Ficha do equipamento com os dados, QR code e histórico de avarias."""
+    equipamento = get_object_or_404(Equipamento, pk=pk)
+    avarias = equipamento.avarias.select_related(
+        "reportado_por",
+        "tecnico_atribuido",
+    ).order_by("-data_registo")
+
+    contexto = {
+        "equipamento": equipamento,
+        "avarias": avarias,
+        "e_tecnico_ou_admin": _e_tecnico_ou_admin(request.user),
+    }
+    return render(request, "equipamentos/equipamento_detalhe.html", contexto)
+
+
+@login_required
+def equipamento_qrcode(request, pk):
+    """Gera o QR code PNG do equipamento, sem guardar ficheiros no disco.
+
+    O QR contém o URL absoluto da ficha do equipamento. O URL absoluto é
+    importante para que possa ser lido por um telemóvel na rede local
+    (ex.: http://192.168.1.10:8000/equipamentos/3/).
+    """
+    equipamento = get_object_or_404(Equipamento, pk=pk)
+
+    url_equipamento = request.build_absolute_uri(equipamento.get_absolute_url())
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url_equipamento)
+    qr.make(fit=True)
+
+    imagem = qr.make_image(fill_color="black", back_color="white")
+    imagem = imagem.get_image().convert("RGB")
+
+    buffer = io.BytesIO()
+    imagem.save(buffer, format="PNG")
+
+    codigo_ficheiro = slugify(equipamento.codigo) or f"equipamento-{equipamento.pk}"
+    resposta = HttpResponse(buffer.getvalue(), content_type="image/png")
+    resposta["Content-Disposition"] = (
+        f'inline; filename="qrcode-{codigo_ficheiro}.png"'
+    )
+    # O URL pode mudar entre pedidos (host/porta), por isso não é público.
+    resposta["Cache-Control"] = "private, max-age=3600"
+    return resposta
+
+
+@tecnico_ou_admin_required
+def relatorio_pdf(request):
+    """Exporta o inventário ou as avarias num relatório PDF.
+
+    Exemplos:
+        /equipamentos/relatorio/pdf/
+        /equipamentos/relatorio/pdf/?tipo=avarias
+
+    O ReportLab gera o documento em memória, pelo que não é necessário
+    configurar uma pasta de media nem instalar bibliotecas de sistema.
+    """
+    tipo = request.GET.get("tipo", "inventario").strip().lower()
+    if tipo not in {"inventario", "avarias"}:
+        tipo = "inventario"
+
+    conteudo = gerar_relatorio_pdf(tipo)
+    nome_ficheiro = f"relatorio_{tipo}.pdf"
+
+    resposta = HttpResponse(conteudo, content_type="application/pdf")
+    resposta["Content-Disposition"] = (
+        f'attachment; filename="{nome_ficheiro}"'
+    )
+    return resposta

@@ -1,0 +1,27 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Bytecode e caches do Python/Django
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+
+# Base de dados local de desenvolvimento
+db.sqlite3
+db.sqlite3-journal
+
+# Ficheiros estáticos recolhidos e media
+staticfiles/
+media/
+
+# Ficheiros de sistema/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

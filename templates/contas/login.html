@@ -20,6 +20,9 @@
 
             <form method="post">
                 {% csrf_token %}
+                {% if next %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                {% endif %}
                 <label for="id_username">Nome de utilizador</label>
                 {{ form.username }}
                 
