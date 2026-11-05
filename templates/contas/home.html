@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <title>Início - Manutenção UCM-FEG</title>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><strong>UCM-FEG Manutenção</strong></li>
+            </ul>
+            <ul>
+                <li>Olá, <strong>{{ request.user.username }}</strong> 
+                    {% if request.user.perfil %}
+                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
+                    {% endif %}
+                </li>
+                <li>
+                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">Sair</button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <article>
+            <h2>Bem-vindo ao Sistema de Gestão de Manutenção</h2>
+            <p>Laboratório de Informática da Universidade Católica de Moçambique - FEG.</p>
+            <p>O ambiente base, a base de dados, os modelos e o sistema de autenticação estão configurados com sucesso.</p>
+        </article>
+    </main>
+</body>
+</html>

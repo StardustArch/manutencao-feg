@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - Gestão de Manutenção UCM-FEG</title>
+    <!-- Pico.css CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+    <main class="container" style="max-width: 400px; margin-top: 10vh;">
+        <article>
+            <header>
+                <h3 style="margin-bottom: 0; text-align: center;">Manutenção UCM-FEG</h3>
+            </header>
+            
+            {% if form.errors %}
+                <p style="color: red; font-size: 0.9rem;">Utilizador ou palavra-passe incorretos. Tente novamente.</p>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <label for="id_username">Nome de utilizador</label>
+                {{ form.username }}
+                
+                <label for="id_password">Palavra-passe</label>
+                {{ form.password }}
+
+                <button type="submit" class="contrast">Entrar</button>
+            </form>
+        </article>
+    </main>
+</body>
+</html>
