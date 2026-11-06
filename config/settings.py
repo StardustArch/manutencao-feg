@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -118,6 +119,10 @@ TIME_ZONE = 'Africa/Maputo'
 LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/contas/login/'
+
+# URL público do site, usado nos QR codes (ex.: http://192.168.1.10:8000).
+# Quando vazio, é usado o URL absoluto do pedido atual.
+SITE_URL = os.environ.get("SITE_URL", "")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/

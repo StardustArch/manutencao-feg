@@ -107,6 +107,10 @@
                    role="button" class="outline secondary">
                     Exportar avarias (PDF)
                 </a>
+                <a href="{% url 'equipamentos:etiquetas' %}"
+                   role="button" class="outline">
+                    Etiquetas
+                </a>
             {% endif %}
             {% if e_tecnico_ou_admin %}
                 <a href="{% url 'equipamentos:avarias_lista' %}" role="button" class="secondary outline">

@@ -2,6 +2,7 @@ import io
 from functools import wraps
 
 import qrcode
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -80,6 +81,15 @@ def admin_required(view_func):
 # ---------------------------------------------------------------------------
 # Contexto e respostas auxiliares
 # ---------------------------------------------------------------------------
+
+
+def url_absoluta(request, path):
+    """Constrói um URL absoluto usando SITE_URL, se estiver definido.
+
+    Sem SITE_URL, mantém o comportamento anterior e recorre ao host do pedido.
+    """
+    base = getattr(settings, "SITE_URL", "").rstrip("/")
+    return f"{base}{path}" if base else request.build_absolute_uri(path)
 
 
 def _contexto_lista_avarias(request):
@@ -602,6 +612,37 @@ def equipamentos_lista(request):
     return render(request, "equipamentos/equipamentos_lista.html", contexto)
 
 
+@tecnico_ou_admin_required
+def etiquetas(request):
+    """Folha A4 com etiquetas QR dos equipamentos, pronta a imprimir."""
+    estado = request.GET.get("estado", "").strip()
+    estados_validos = dict(Equipamento.ESTADO_EQUIPAMENTO_CHOICES)
+
+    if estado not in estados_validos:
+        estado = ""
+
+    equipamentos = Equipamento.objects.order_by("codigo")
+    if estado:
+        equipamentos = equipamentos.filter(estado=estado)
+
+    # Cada folha A4 tem 3 colunas x 8 linhas = 24 etiquetas.
+    tamanho_pagina = 24
+    lista_equipamentos = list(equipamentos)
+    paginas = [
+        lista_equipamentos[inicio : inicio + tamanho_pagina]
+        for inicio in range(0, len(lista_equipamentos), tamanho_pagina)
+    ]
+
+    contexto = {
+        "paginas": paginas,
+        "total_equipamentos": len(lista_equipamentos),
+        "estados": Equipamento.ESTADO_EQUIPAMENTO_CHOICES,
+        "estado_atual": estado,
+        "estado_atual_display": estados_validos.get(estado, ""),
+    }
+    return render(request, "equipamentos/etiquetas.html", contexto)
+
+
 @login_required
 def equipamento_detalhe(request, pk):
     """Ficha do equipamento com os dados, QR code e histórico de avarias."""
@@ -639,11 +680,12 @@ def equipamento_qrcode(request, pk):
     """
     equipamento = get_object_or_404(Equipamento, pk=pk)
 
-    url_equipamento = request.build_absolute_uri(
+    url_equipamento = url_absoluta(
+        request,
         reverse(
             "equipamentos:reportar_avaria_equipamento",
             kwargs={"pk": equipamento.pk},
-        )
+        ),
     )
 
     qr = qrcode.QRCode(

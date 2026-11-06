@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Etiquetas QR - Manutenção UCM-FEG{% endblock %}
+
+{% block extra_head %}
+<style>
+    .barra-etiquetas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: end;
+        margin-bottom: 1.25rem;
+    }
+
+    .barra-etiquetas form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: end;
+        margin: 0;
+    }
+
+    .barra-etiquetas label {
+        margin: 0;
+    }
+
+    .barra-etiquetas select,
+    .barra-etiquetas button,
+    .barra-etiquetas a[role="button"] {
+        margin-bottom: 0;
+    }
+
+    .folha-etiquetas {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+        gap: 2mm;
+        width: 190mm;
+        height: 277mm;
+        margin: 0 auto 1.5rem;
+        background: #fff;
+        page-break-after: always;
+        break-after: page;
+    }
+
+    .folha-etiquetas:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    .etiqueta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1mm;
+        padding: 2mm;
+        overflow: hidden;
+        border: 1px dashed #6b7280;
+        text-align: center;
+        background: #fff;
+        color: #111;
+        line-height: 1.15;
+    }
+
+    .etiqueta img {
+        display: block;
+        width: 19mm;
+        height: 19mm;
+        image-rendering: pixelated;
+    }
+
+    .etiqueta .codigo-etiqueta {
+        font-size: 8pt;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+
+    .etiqueta .marca-etiqueta {
+        font-size: 7pt;
+        overflow-wrap: anywhere;
+    }
+
+    .etiqueta .local-etiqueta {
+        font-size: 6.5pt;
+        color: #374151;
+        overflow-wrap: anywhere;
+    }
+
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+
+        header,
+        nav,
+        footer {
+            display: none !important;
+        }
+
+        main.container {
+            width: auto;
+            max-width: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            margin: 0;
+            background: #fff;
+        }
+
+        .folha-etiquetas {
+            margin: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Etiquetas QR</h1>
+    <p>
+        Folha A4 com {{ total_equipamentos }} equipamento{{ total_equipamentos|pluralize:"s" }}
+        {% if estado_atual %}(estado: {{ estado_atual_display }}){% endif %}.
+    </p>
+</hgroup>
+
+<div class="barra-etiquetas no-print">
+    <button type="button" onclick="window.print()">Imprimir</button>
+
+    <form method="get" action="{% url 'equipamentos:etiquetas' %}">
+        <label for="filtro-estado-etiquetas">
+            Estado
+            <select id="filtro-estado-etiquetas" name="estado">
+                <option value="">Todos os estados</option>
+                {% for valor, rotulo in estados %}
+                    <option value="{{ valor }}" {% if estado_atual == valor %}selected{% endif %}>
+                        {{ rotulo }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit" class="outline">Filtrar</button>
+        <a href="{% url 'equipamentos:etiquetas' %}" role="button" class="secondary outline">
+            Limpar
+        </a>
+    </form>
+</div>
+
+{% for pagina in paginas %}
+    <section class="folha-etiquetas">
+        {% for equipamento in pagina %}
+            <div class="etiqueta">
+                <img src="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
+                     alt="QR code do equipamento {{ equipamento.codigo }}">
+                <div class="codigo-etiqueta">{{ equipamento.codigo }}</div>
+                <div class="marca-etiqueta">{{ equipamento.marca_modelo }}</div>
+                <div class="local-etiqueta">{{ equipamento.localizacao }}</div>
+            </div>
+        {% endfor %}
+    </section>
+{% empty %}
+    <p>Nenhum equipamento encontrado para os filtros selecionados.</p>
+{% endfor %}
+{% endblock %}

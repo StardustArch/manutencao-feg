@@ -1,8 +1,10 @@
+from io import StringIO
 from unittest import mock
 
 import qrcode
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.core.management import call_command
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from .models import (
@@ -950,3 +952,142 @@ class Fase1RequisitosTests(TestCase):
 
         self.assertEqual(dados_capturados["url"], url_reporte)
         self.assertNotEqual(dados_capturados["url"], url_ficha)
+
+
+class EtiquetasTests(TestCase):
+    """Testes da folha A4 de etiquetas QR."""
+
+    def setUp(self):
+        self.tecnico = User.objects.create_user(
+            username="tecnico_etiquetas",
+            password="segredo123",
+        )
+        self.tecnico.perfil.papel = "tecnico"
+        self.tecnico.perfil.save()
+
+        self.utilizador = User.objects.create_user(
+            username="comum_etiquetas",
+            password="segredo123",
+        )
+
+        self.equipamento = Equipamento.objects.create(
+            codigo="UCM-FEG-ETQ-01",
+            tipo="computador",
+            marca_modelo="Dell Etiquetas",
+            localizacao="Sala de Testes",
+            estado="operacional",
+        )
+
+    def test_tecnico_acede_as_etiquetas(self):
+        self.client.force_login(self.tecnico)
+
+        resposta = self.client.get(reverse("equipamentos:etiquetas"))
+
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, "UCM-FEG-ETQ-01")
+        self.assertContains(resposta, "Imprimir")
+        self.assertContains(
+            resposta,
+            reverse(
+                "equipamentos:equipamento_qrcode",
+                kwargs={"pk": self.equipamento.pk},
+            ),
+        )
+
+    def test_utilizador_comum_nao_acede_as_etiquetas(self):
+        self.client.force_login(self.utilizador)
+
+        resposta = self.client.get(reverse("equipamentos:etiquetas"))
+
+        self.assertEqual(resposta.status_code, 403)
+
+
+class SeedDemoTests(TestCase):
+    """Testes do comando de dados de demonstração."""
+
+    def test_seed_demo_e_idempotente(self):
+        call_command("seed_demo", stdout=StringIO())
+        primeiras_contagens = (
+            User.objects.count(),
+            Equipamento.objects.count(),
+            Avaria.objects.count(),
+            Intervencao.objects.count(),
+        )
+
+        call_command("seed_demo", stdout=StringIO())
+        segundas_contagens = (
+            User.objects.count(),
+            Equipamento.objects.count(),
+            Avaria.objects.count(),
+            Intervencao.objects.count(),
+        )
+
+        self.assertEqual(primeiras_contagens, segundas_contagens)
+        self.assertGreater(primeiras_contagens[1], 0)
+        self.assertGreater(primeiras_contagens[2], 0)
+        self.assertGreater(primeiras_contagens[3], 0)
+
+
+class QRCodeSiteURLTests(TestCase):
+    """Testes do URL configurável usado nos QR codes."""
+
+    def setUp(self):
+        self.utilizador = User.objects.create_user(
+            username="tecnico_site_url",
+            password="segredo123",
+        )
+        self.utilizador.perfil.papel = "tecnico"
+        self.utilizador.perfil.save()
+
+        self.equipamento = Equipamento.objects.create(
+            codigo="UCM-FEG-SITE-01",
+            tipo="computador",
+            marca_modelo="HP Site URL",
+            estado="operacional",
+        )
+        self.client.force_login(self.utilizador)
+
+    def _obter_url_do_qrcode(self):
+        dados_capturados = {}
+        adicionar_url_original = qrcode.QRCode.add_data
+
+        def capturar_url(instancia, data, *args, **kwargs):
+            dados_capturados["url"] = data
+            return adicionar_url_original(
+                instancia, data, *args, **kwargs
+            )
+
+        with mock.patch.object(
+            qrcode.QRCode, "add_data", capturar_url
+        ):
+            resposta = self.client.get(
+                reverse(
+                    "equipamentos:equipamento_qrcode",
+                    kwargs={"pk": self.equipamento.pk},
+                )
+            )
+
+        self.assertEqual(resposta.status_code, 200)
+        return dados_capturados["url"]
+
+    @override_settings(SITE_URL="http://192.168.1.10:8000")
+    def test_qrcode_usa_site_url_quando_definido(self):
+        self.assertEqual(
+            self._obter_url_do_qrcode(),
+            "http://192.168.1.10:8000"
+            + reverse(
+                "equipamentos:reportar_avaria_equipamento",
+                kwargs={"pk": self.equipamento.pk},
+            ),
+        )
+
+    @override_settings(SITE_URL="")
+    def test_qrcode_sem_site_url_usa_o_host_do_pedido(self):
+        self.assertEqual(
+            self._obter_url_do_qrcode(),
+            "http://testserver"
+            + reverse(
+                "equipamentos:reportar_avaria_equipamento",
+                kwargs={"pk": self.equipamento.pk},
+            ),
+        )

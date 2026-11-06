@@ -10,7 +10,15 @@ class EquipamentoAdmin(admin.ModelAdmin):
 
 @admin.register(Avaria)
 class AvariaAdmin(admin.ModelAdmin):
-    list_display = ("equipamento", "estado", "prioridade", "reportado_por")
+    list_display = (
+        "equipamento",
+        "estado",
+        "prioridade",
+        "reportado_por",
+        "tecnico_atribuido",
+    )
+    list_display_links = ("equipamento",)
+    list_editable = ["tecnico_atribuido"]
 
 
 @admin.register(HistoricoEstadoEquipamento)
