@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reportar avaria - Manutenção UCM-FEG</title>
+{% extends "base.html" %}
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+{% block title %}Reportar avaria - Manutenção UCM-FEG{% endblock %}
 
-    <style>
+{% block extra_head %}
+<style>
         .mensagem {
             margin-bottom: 1rem;
             padding: 0.8rem 1rem;
@@ -27,37 +23,11 @@
         .erros ul {
             margin: 0.35rem 0 0;
         }
-    </style>
-</head>
-<body>
-    <header class="container">
-        <nav>
-            <ul>
-                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
-                <li><a href="{% url 'home' %}">Início</a></li>
-                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
-                <li><a href="{% url 'equipamentos:minhas_avarias' %}" aria-current="page">Minhas avarias</a></li>
-            </ul>
-            <ul>
-                <li>
-                    Olá, <strong>{{ request.user.username }}</strong>
-                    {% if request.user.perfil %}
-                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
-                    {% endif %}
-                </li>
-                <li>
-                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
-                        {% csrf_token %}
-                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
-                            Sair
-                        </button>
-                    </form>
-                </li>
-            </ul>
-        </nav>
-    </header>
+    
+</style>
+{% endblock %}
 
-    <main class="container">
+{% block content %}
         <p>
             <a href="{% url 'equipamentos:minhas_avarias' %}">&larr; Voltar às minhas avarias</a>
         </p>
@@ -125,6 +95,5 @@
                 <button type="submit">Registar avaria</button>
             </form>
         </article>
-    </main>
-</body>
-</html>
+    
+{% endblock %}

@@ -50,13 +50,18 @@ class Equipamento(models.Model):
         )
 
 
-def recalcular_estado_equipamento(equipamento, actor=None, origem="fluxo", motivo=""):
+def recalcular_estado_equipamento(
+    equipamento, actor=None, origem="fluxo", motivo="", estado_manual=None
+):
     """Sincroniza o estado do equipamento com as avarias ainda abertas.
 
     O estado alvo é sempre derivado do trabalho pendente:
       * existe alguma avaria em reparação -> "manutencao";
       * caso contrário, existe alguma avaria pendente -> "avariado";
       * caso contrário -> "operacional".
+
+    Numa correção manual, ``estado_manual`` permite ao administrador escolher
+    diretamente o estado pretendido, mantendo o registo de histórico.
 
     REGRA DE OURO: um equipamento abatido só pode sair desse estado através de
     uma correção manual (``origem="manual"``). O fluxo automático nunca o
@@ -65,7 +70,9 @@ def recalcular_estado_equipamento(equipamento, actor=None, origem="fluxo", motiv
     if equipamento.estado == "abatido" and origem != "manual":
         return equipamento.estado
 
-    if equipamento.avarias.filter(estado="em_reparacao").exists():
+    if estado_manual is not None:
+        novo_estado = estado_manual
+    elif equipamento.avarias.filter(estado="em_reparacao").exists():
         novo_estado = "manutencao"
     elif equipamento.avarias.filter(estado="pendente").exists():
         novo_estado = "avariado"

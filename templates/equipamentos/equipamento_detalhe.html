@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ equipamento.codigo }} - Equipamento</title>
+{% extends "base.html" %}
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+{% block title %}{{ equipamento.codigo }} - Equipamento{% endblock %}
 
-    <style>
+{% block extra_head %}
+<style>
         .badge {
             display: inline-block;
             padding: 0.22rem 0.6rem;
@@ -112,6 +108,22 @@
             margin-bottom: 1rem;
         }
 
+        .acoes-ficha {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .acoes-ficha > * {
+            margin: 0;
+        }
+
+        .historico-estados td,
+        .historico-estados th {
+            vertical-align: middle;
+        }
+
         .texto-suave {
             color: var(--pico-muted-color);
             font-size: 0.82rem;
@@ -168,40 +180,11 @@
                 padding: 0 !important;
             }
         }
-    </style>
-</head>
-<body>
-    <header class="container">
-        <nav>
-            <ul>
-                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
-                <li><a href="{% url 'home' %}">Início</a></li>
-                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
-                {% if e_tecnico_ou_admin %}
-                    <li><a href="{% url 'equipamentos:avarias_lista' %}">Avarias</a></li>
-                    <li><a href="{% url 'equipamentos:dashboard' %}">Dashboard</a></li>
-                {% endif %}
-            </ul>
-            <ul>
-                <li>
-                    Olá, <strong>{{ request.user.username }}</strong>
-                    {% if request.user.perfil %}
-                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
-                    {% endif %}
-                </li>
-                <li>
-                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
-                        {% csrf_token %}
-                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
-                            Sair
-                        </button>
-                    </form>
-                </li>
-            </ul>
-        </nav>
-    </header>
+    
+</style>
+{% endblock %}
 
-    <main class="container">
+{% block content %}
         {% if messages %}
             {% for message in messages %}
                 <div class="mensagem mensagem-{{ message.tags }}" role="status">
@@ -224,6 +207,17 @@
                 {{ equipamento.get_estado_display }}
             </span>
             <span class="texto-suave">Registado no inventário do laboratório</span>
+        </div>
+
+        <div class="acoes-ficha no-print">
+            <a href="{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}"
+               role="button">
+                Reportar avaria
+            </a>
+            <a href="{% url 'equipamentos:equipamentos_lista' %}"
+               role="button" class="secondary outline">
+                Voltar ao inventário
+            </a>
         </div>
 
         <div class="ficha-grid">
@@ -323,6 +317,46 @@
             </article>
         </div>
 
+        {% if corrigir_estado_form %}
+            <article class="no-print" style="margin-top: 1.5rem;">
+                <header>
+                    <h2>Corrigir estado</h2>
+                    <p><small>
+                        Correção manual do estado do equipamento. O motivo é
+                        obrigatório e fica registado no histórico.
+                    </small></p>
+                </header>
+
+                <form method="post"
+                      action="{% url 'equipamentos:corrigir_estado' equipamento.pk %}">
+                    {% csrf_token %}
+
+                    <div class="grid">
+                        <label for="{{ corrigir_estado_form.estado.id_for_label }}">
+                            {{ corrigir_estado_form.estado.label }}
+                            {{ corrigir_estado_form.estado }}
+                        </label>
+
+                        <label for="{{ corrigir_estado_form.motivo.id_for_label }}">
+                            {{ corrigir_estado_form.motivo.label }}
+                            {{ corrigir_estado_form.motivo }}
+                        </label>
+                    </div>
+
+                    {% if corrigir_estado_form.errors %}
+                        <div class="mensagem mensagem-error" role="alert">
+                            Verifica o estado e o motivo indicados.
+                            {{ corrigir_estado_form.errors }}
+                        </div>
+                    {% endif %}
+
+                    <button type="submit" class="secondary">
+                        Corrigir estado
+                    </button>
+                </form>
+            </article>
+        {% endif %}
+
         <article class="no-print" style="margin-top: 1.5rem;">
             <header>
                 <h2>Histórico de avarias</h2>
@@ -379,6 +413,64 @@
                 </table>
             </div>
         </article>
-    </main>
-</body>
-</html>
+
+        <article class="no-print" style="margin-top: 1.5rem;">
+            <header>
+                <h2>Histórico de estados</h2>
+                <p><small>
+                    Alterações automáticas e correções manuais do estado deste
+                    equipamento.
+                </small></p>
+            </header>
+
+            <div style="overflow-x: auto;">
+                <table class="striped historico-estados">
+                    <thead>
+                        <tr>
+                            <th scope="col">Data</th>
+                            <th scope="col">Estado anterior</th>
+                            <th scope="col">Estado novo</th>
+                            <th scope="col">Origem</th>
+                            <th scope="col">Alterado por</th>
+                            <th scope="col">Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for registo in historico_estados %}
+                            <tr>
+                                <td><small>{{ registo.data_hora|date:"d/m/Y H:i" }}</small></td>
+                                <td>
+                                    <span class="badge badge-estado-{{ registo.estado_anterior }}">
+                                        {{ registo.get_estado_anterior_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-estado-{{ registo.estado_novo }}">
+                                        {{ registo.get_estado_novo_display }}
+                                    </span>
+                                </td>
+                                <td>{{ registo.get_origem_display }}</td>
+                                <td>{{ registo.alterado_por.username|default:"—" }}</td>
+                                <td>
+                                    {% if registo.motivo %}
+                                        {{ registo.motivo|linebreaksbr }}
+                                    {% else %}
+                                        <span class="texto-suave">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6">
+                                    <p class="texto-suave">
+                                        Ainda não existem alterações de estado registadas.
+                                    </p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    
+{% endblock %}

@@ -657,3 +657,296 @@ class FluxoReporteAvariasTests(TestCase):
         )
 
         self.assertEqual(resposta.status_code, 403)
+
+
+class Fase1RequisitosTests(TestCase):
+    """Testes explícitos dos requisitos da fase 1."""
+
+    def setUp(self):
+        self.utilizador = User.objects.create_user(
+            username="comum_fase1",
+            password="segredo123",
+        )
+        self.tecnico = User.objects.create_user(
+            username="tecnico_fase1",
+            password="segredo123",
+        )
+        self.tecnico.perfil.papel = "tecnico"
+        self.tecnico.perfil.save()
+
+        self.admin = User.objects.create_user(
+            username="admin_fase1",
+            password="segredo123",
+        )
+        self.admin.perfil.papel = "admin"
+        self.admin.perfil.save()
+
+        self.equipamento = Equipamento.objects.create(
+            codigo="UCM-FEG-FASE1-01",
+            tipo="computador",
+            marca_modelo="Dell Fase 1",
+            estado="operacional",
+        )
+        self.client.force_login(self.utilizador)
+
+    def _criar_avaria(self, estado="pendente", reportado_por=None):
+        return Avaria.objects.create(
+            equipamento=self.equipamento,
+            reportado_por=reportado_por or self.utilizador,
+            descricao="Avaria de teste da fase 1",
+            prioridade="media",
+            estado=estado,
+        )
+
+    def test_1_reportar_avaria_cria_avaria_e_equipamento_avariado(self):
+        resposta = self.client.post(
+            reverse("equipamentos:reportar_avaria"),
+            {
+                "equipamento": self.equipamento.pk,
+                "descricao": "O equipamento não liga.",
+                "prioridade": "alta",
+            },
+        )
+
+        self.assertRedirects(
+            resposta, reverse("equipamentos:minhas_avarias")
+        )
+        self.assertEqual(Avaria.objects.count(), 1)
+
+        avaria = Avaria.objects.get()
+        self.equipamento.refresh_from_db()
+        self.assertEqual(avaria.estado, "pendente")
+        self.assertEqual(self.equipamento.estado, "avariado")
+
+    def test_2_reportar_avaria_em_equipamento_abatido_e_rejeitado(self):
+        self.equipamento.estado = "abatido"
+        self.equipamento.save(update_fields=["estado"])
+
+        resposta = self.client.post(
+            reverse(
+                "equipamentos:reportar_avaria_equipamento",
+                kwargs={"pk": self.equipamento.pk},
+            ),
+            {
+                "equipamento": self.equipamento.pk,
+                "descricao": "Não deve criar avaria.",
+                "prioridade": "media",
+            },
+            follow=True,
+        )
+
+        self.assertContains(resposta, "equipamento abatido")
+        self.assertEqual(Avaria.objects.count(), 0)
+
+    def test_3_reportar_exige_autenticacao(self):
+        self.client.logout()
+
+        resposta = self.client.get(reverse("equipamentos:reportar_avaria"))
+
+        self.assertEqual(resposta.status_code, 302)
+        self.assertIn(reverse("contas:login"), resposta["Location"])
+
+    def test_4_fluxo_criar_assumir_resolver(self):
+        self.client.force_login(self.tecnico)
+
+        self.client.post(
+            reverse("equipamentos:reportar_avaria"),
+            {
+                "equipamento": self.equipamento.pk,
+                "descricao": "Falha no disco.",
+                "prioridade": "urgente",
+            },
+        )
+        avaria = Avaria.objects.get()
+        self.equipamento.refresh_from_db()
+        self.assertEqual(self.equipamento.estado, "avariado")
+
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_assumir",
+                kwargs={"pk": avaria.pk},
+            )
+        )
+        avaria.refresh_from_db()
+        self.equipamento.refresh_from_db()
+        self.assertEqual(avaria.estado, "em_reparacao")
+        self.assertEqual(self.equipamento.estado, "manutencao")
+
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": avaria.pk},
+            ),
+            {"estado": "resolvido"},
+        )
+        avaria.refresh_from_db()
+        self.equipamento.refresh_from_db()
+        self.assertEqual(avaria.estado, "resolvido")
+        self.assertEqual(self.equipamento.estado, "operacional")
+
+    def test_5_resolver_uma_de_duas_avarias_mantem_equipamento_avariado(self):
+        self.client.force_login(self.admin)
+        primeira = self._criar_avaria()
+        segunda = self._criar_avaria()
+
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": primeira.pk},
+            ),
+            {"estado": "em_reparacao"},
+        )
+
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": primeira.pk},
+            ),
+            {"estado": "resolvido"},
+        )
+        self.equipamento.refresh_from_db()
+        self.assertEqual(self.equipamento.estado, "avariado")
+
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": segunda.pk},
+            ),
+            {"estado": "em_reparacao"},
+        )
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": segunda.pk},
+            ),
+            {"estado": "resolvido"},
+        )
+        self.equipamento.refresh_from_db()
+        self.assertEqual(self.equipamento.estado, "operacional")
+
+    def test_6_resolver_ultima_avaria_nao_altera_equipamento_abatido(self):
+        self.equipamento.estado = "abatido"
+        self.equipamento.save(update_fields=["estado"])
+        avaria = self._criar_avaria()
+        self.client.force_login(self.admin)
+
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": avaria.pk},
+            ),
+            {"estado": "em_reparacao"},
+        )
+        self.client.post(
+            reverse(
+                "equipamentos:avaria_alterar_estado",
+                kwargs={"pk": avaria.pk},
+            ),
+            {"estado": "resolvido"},
+        )
+
+        avaria.refresh_from_db()
+        self.equipamento.refresh_from_db()
+        self.assertEqual(avaria.estado, "resolvido")
+        self.assertEqual(self.equipamento.estado, "abatido")
+
+    def test_7_historico_regista_transicoes_corretas(self):
+        avaria = self._criar_avaria()
+
+        avaria.estado = "em_reparacao"
+        avaria.save()
+        recalcular_estado_equipamento(
+            self.equipamento, actor=self.tecnico
+        )
+
+        avaria.estado = "resolvido"
+        avaria.save()
+        recalcular_estado_equipamento(
+            self.equipamento, actor=self.tecnico
+        )
+
+        transicoes = [
+            (registo.estado_anterior, registo.estado_novo)
+            for registo in self.equipamento.historico_estados.order_by("id")
+        ]
+        self.assertEqual(
+            transicoes,
+            [
+                ("operacional", "avariado"),
+                ("avariado", "manutencao"),
+                ("manutencao", "operacional"),
+            ],
+        )
+
+    def test_8_corrigir_estado_so_admin_e_regista_origem_manual(self):
+        url = reverse(
+            "equipamentos:corrigir_estado",
+            kwargs={"pk": self.equipamento.pk},
+        )
+
+        resposta_comum = self.client.post(
+            url,
+            {"estado": "manutencao", "motivo": "Tentativa sem permissão."},
+        )
+        self.assertEqual(resposta_comum.status_code, 403)
+        self.assertEqual(
+            HistoricoEstadoEquipamento.objects.count(), 0
+        )
+
+        self.client.force_login(self.admin)
+        resposta_admin = self.client.post(
+            url,
+            {
+                "estado": "manutencao",
+                "motivo": "Equipamento em revisão geral.",
+            },
+        )
+        self.assertRedirects(
+            resposta_admin,
+            reverse(
+                "equipamentos:equipamento_detalhe",
+                kwargs={"pk": self.equipamento.pk},
+            ),
+        )
+
+        self.equipamento.refresh_from_db()
+        self.assertEqual(self.equipamento.estado, "manutencao")
+
+        registo = HistoricoEstadoEquipamento.objects.get(
+            equipamento=self.equipamento
+        )
+        self.assertEqual(registo.origem, "manual")
+        self.assertEqual(registo.alterado_por, self.admin)
+        self.assertEqual(registo.motivo, "Equipamento em revisão geral.")
+        self.assertEqual(registo.estado_anterior, "operacional")
+        self.assertEqual(registo.estado_novo, "manutencao")
+
+    def test_9_qrcode_contem_url_de_reporte_e_nao_da_ficha(self):
+        dados_capturados = {}
+        adicionar_url_original = qrcode.QRCode.add_data
+
+        def capturar_url(instancia, data, *args, **kwargs):
+            dados_capturados["url"] = data
+            return adicionar_url_original(
+                instancia, data, *args, **kwargs
+            )
+
+        with mock.patch.object(
+            qrcode.QRCode, "add_data", capturar_url
+        ):
+            resposta = self.client.get(
+                reverse(
+                    "equipamentos:equipamento_qrcode",
+                    kwargs={"pk": self.equipamento.pk},
+                )
+            )
+
+        self.assertEqual(resposta.status_code, 200)
+        url_reporte = "http://testserver" + reverse(
+            "equipamentos:reportar_avaria_equipamento",
+            kwargs={"pk": self.equipamento.pk},
+        )
+        url_ficha = "http://testserver" + self.equipamento.get_absolute_url()
+
+        self.assertEqual(dados_capturados["url"], url_reporte)
+        self.assertNotEqual(dados_capturados["url"], url_ficha)

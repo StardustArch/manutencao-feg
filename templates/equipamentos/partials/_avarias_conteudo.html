@@ -91,6 +91,10 @@
                             </td>
                             <td>
                                 <div class="acoes-avaria">
+                                    <a href="{% url 'equipamentos:avaria_detalhe' avaria.pk %}"
+                                       class="texto-suave">
+                                        Detalhe
+                                    </a>
                                     {% if avaria.estado == "pendente" or avaria.estado == "em_reparacao" %}
                                         {% if not avaria.tecnico_atribuido %}
                                             <!--

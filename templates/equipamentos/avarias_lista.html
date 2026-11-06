@@ -1,14 +1,9 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Gestão de Avarias - Manutenção UCM-FEG</title>
+{% extends "base.html" %}
 
-    <!-- Pico.css via CDN (mantém o mesmo estilo do resto do projeto) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+{% block title %}Gestão de Avarias - Manutenção UCM-FEG{% endblock %}
 
-    <style>
+{% block extra_head %}
+<style>
         /* Pequenos ajustes de apresentação, sem introduzir frameworks pesados. */
         .badge {
             display: inline-block;
@@ -127,38 +122,11 @@
             color: var(--pico-muted-color);
             font-size: 0.82rem;
         }
-    </style>
-</head>
-<body>
-    <header class="container">
-        <nav>
-            <ul>
-                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
-                <li><a href="{% url 'home' %}">Início</a></li>
-                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
-                <li><a href="{% url 'equipamentos:avarias_lista' %}" aria-current="page">Avarias</a></li>
-                <li><a href="{% url 'equipamentos:dashboard' %}">Dashboard</a></li>
-            </ul>
-            <ul>
-                <li>
-                    Olá, <strong>{{ request.user.username }}</strong>
-                    {% if request.user.perfil %}
-                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
-                    {% endif %}
-                </li>
-                <li>
-                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
-                        {% csrf_token %}
-                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
-                            Sair
-                        </button>
-                    </form>
-                </li>
-            </ul>
-        </nav>
-    </header>
+    
+</style>
+{% endblock %}
 
-    <main class="container">
+{% block content %}
         <hgroup>
             <h1>Gestão de Avarias</h1>
             <p>Consulta, atribuição de técnicos e atualização do estado das avarias do laboratório.</p>
@@ -225,9 +193,10 @@
 
         <!-- Este bloco é substituído pelo HTMX. O partial tem exatamente o mesmo id. -->
         {% include "equipamentos/partials/_avarias_conteudo.html" %}
-    </main>
+    
+{% endblock %}
 
-    <!-- HTMX via CDN -->
+{% block extra_js %}
+<!-- HTMX via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
-</body>
-</html>
+{% endblock %}

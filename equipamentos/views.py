@@ -481,6 +481,7 @@ def corrigir_estado(request, pk):
                 actor=request.user,
                 origem="manual",
                 motivo=form.cleaned_data["motivo"],
+                estado_manual=form.cleaned_data["estado"],
             )
 
         messages.success(
@@ -609,10 +610,20 @@ def equipamento_detalhe(request, pk):
         "reportado_por",
         "tecnico_atribuido",
     ).order_by("-data_registo")
+    e_admin = _e_admin(request.user)
 
     contexto = {
         "equipamento": equipamento,
         "avarias": avarias,
+        "historico_estados": equipamento.historico_estados.select_related(
+            "alterado_por"
+        ),
+        "corrigir_estado_form": (
+            CorrigirEstadoForm(initial={"estado": equipamento.estado})
+            if e_admin
+            else None
+        ),
+        "e_admin": e_admin,
         "e_tecnico_ou_admin": _e_tecnico_ou_admin(request.user),
     }
     return render(request, "equipamentos/equipamento_detalhe.html", contexto)

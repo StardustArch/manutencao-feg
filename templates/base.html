@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Manutenção UCM-FEG{% endblock %}</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
+                <li><a href="{% url 'home' %}">Início</a></li>
+                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
+                {% if request.user.is_superuser or request.user.perfil.papel == "tecnico" or request.user.perfil.papel == "admin" %}
+                    <li><a href="{% url 'equipamentos:avarias_lista' %}">Avarias</a></li>
+                    <li><a href="{% url 'equipamentos:dashboard' %}">Dashboard</a></li>
+                {% endif %}
+                <li><a href="{% url 'equipamentos:reportar_avaria' %}">Reportar avaria</a></li>
+                <li><a href="{% url 'equipamentos:minhas_avarias' %}">Minhas avarias</a></li>
+            </ul>
+            <ul>
+                <li>
+                    Olá, <strong>{{ request.user.username }}</strong>
+                    {% if request.user.perfil %}
+                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
+                    {% endif %}
+                </li>
+                <li>
+                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
+                            Sair
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
