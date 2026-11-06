@@ -50,6 +50,46 @@ class Equipamento(models.Model):
         )
 
 
+def recalcular_estado_equipamento(equipamento, actor=None, origem="fluxo", motivo=""):
+    """Sincroniza o estado do equipamento com as avarias ainda abertas.
+
+    O estado alvo é sempre derivado do trabalho pendente:
+      * existe alguma avaria em reparação -> "manutencao";
+      * caso contrário, existe alguma avaria pendente -> "avariado";
+      * caso contrário -> "operacional".
+
+    REGRA DE OURO: um equipamento abatido só pode sair desse estado através de
+    uma correção manual (``origem="manual"``). O fluxo automático nunca o
+    reativa. Quando o estado não muda, nada é gravado.
+    """
+    if equipamento.estado == "abatido" and origem != "manual":
+        return equipamento.estado
+
+    if equipamento.avarias.filter(estado="em_reparacao").exists():
+        novo_estado = "manutencao"
+    elif equipamento.avarias.filter(estado="pendente").exists():
+        novo_estado = "avariado"
+    else:
+        novo_estado = "operacional"
+
+    if novo_estado == equipamento.estado:
+        return equipamento.estado
+
+    estado_anterior = equipamento.estado
+    equipamento.estado = novo_estado
+    equipamento.save(update_fields=["estado"])
+
+    HistoricoEstadoEquipamento.objects.create(
+        equipamento=equipamento,
+        estado_anterior=estado_anterior,
+        estado_novo=novo_estado,
+        alterado_por=actor,
+        origem=origem,
+        motivo=motivo or "",
+    )
+    return novo_estado
+
+
 class Avaria(models.Model):
     PRIORIDADE_CHOICES = (
         ("baixa", "Baixa"),
@@ -102,6 +142,19 @@ class Avaria(models.Model):
     def __str__(self):
         return f"Avaria #{self.id} - {self.equipamento.codigo} ({self.get_estado_display()})"
 
+    def save(self, *args, **kwargs):
+        """Garante a sincronização do equipamento ao criar uma avaria.
+
+        O `save()` é usado pelo admin, pela shell e por qualquer código ORM.
+        Como só reagimos à criação (``_state.adding``), as atualizações de
+        estado continuam a ser explicitamente sincronizadas pelas views.
+        """
+        estava_a_ser_criada = self._state.adding
+        super().save(*args, **kwargs)
+
+        if estava_a_ser_criada:
+            recalcular_estado_equipamento(self.equipamento)
+
     @property
     def proximos_estados(self):
         """Devolve os estados possíveis a partir do estado atual, já com rótulos.
@@ -133,4 +186,44 @@ class Intervencao(models.Model):
         return (
             f"Intervenção em {self.avaria.equipamento.codigo} por"
             f" {self.tecnico.username if self.tecnico else 'N/D'}"
+        )
+
+
+class HistoricoEstadoEquipamento(models.Model):
+    ORIGEM_CHOICES = (
+        ("fluxo", "Fluxo automático"),
+        ("manual", "Correção manual"),
+    )
+
+    equipamento = models.ForeignKey(
+        Equipamento,
+        on_delete=models.CASCADE,
+        related_name="historico_estados",
+    )
+    estado_anterior = models.CharField(
+        max_length=20, choices=Equipamento.ESTADO_EQUIPAMENTO_CHOICES
+    )
+    estado_novo = models.CharField(
+        max_length=20, choices=Equipamento.ESTADO_EQUIPAMENTO_CHOICES
+    )
+    alterado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alteracoes_estado_equipamento",
+    )
+    origem = models.CharField(
+        max_length=20, choices=ORIGEM_CHOICES, default="fluxo"
+    )
+    motivo = models.TextField(blank=True, default="")
+    data_hora = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-data_hora"]
+
+    def __str__(self):
+        return (
+            f"{self.equipamento.codigo}: {self.estado_anterior} ->"
+            f" {self.estado_novo} ({self.get_origem_display()})"
         )

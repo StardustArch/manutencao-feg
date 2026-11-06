@@ -117,6 +117,17 @@
             font-size: 0.82rem;
         }
 
+        .mensagem {
+            margin-bottom: 1rem;
+            padding: 0.8rem 1rem;
+            border-radius: var(--pico-border-radius);
+        }
+
+        .mensagem-success { background: #dcfce7; color: #14532d; }
+        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
+        .mensagem-warning { background: #fef3c7; color: #78350f; }
+        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
+
         .tabela-avarias-equipamento {
             min-width: 720px;
         }
@@ -191,6 +202,14 @@
     </header>
 
     <main class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mensagem mensagem-{{ message.tags }}" role="status">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
         <p class="no-print">
             <a href="{% url 'equipamentos:equipamentos_lista' %}">&larr; Voltar ao inventário</a>
         </p>
@@ -266,7 +285,7 @@
             <article class="qr-card">
                 <header>
                     <h2>QR code</h2>
-                    <p><small>Aponta para esta ficha de equipamento.</small></p>
+                    <p><small>Aponta para o reporte de avaria deste equipamento.</small></p>
                 </header>
 
                 <img src="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
@@ -275,10 +294,14 @@
                      alt="QR code do equipamento {{ equipamento.codigo }}">
 
                 <p class="qr-url">
-                    {{ request.scheme }}://{{ request.get_host }}{{ equipamento.get_absolute_url }}
+                    {{ request.scheme }}://{{ request.get_host }}{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}
                 </p>
 
                 <div class="acoes-qr no-print">
+                    <a href="{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}"
+                       role="button">
+                        Reportar avaria
+                    </a>
                     <a href="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
                        download
                        role="button" class="outline">

@@ -5,6 +5,7 @@ import qrcode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -12,7 +13,13 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from .models import Avaria, Equipamento
+from .forms import AvariaForm, CorrigirEstadoForm, IntervencaoForm
+from .models import (
+    Avaria,
+    Equipamento,
+    Intervencao,
+    recalcular_estado_equipamento,
+)
 from .relatorios import gerar_relatorio_pdf
 
 # ---------------------------------------------------------------------------
@@ -52,6 +59,22 @@ def _e_admin(user):
     """Indica se o utilizador tem privilégios de administração."""
     perfil = getattr(user, "perfil", None)
     return user.is_superuser or (perfil and perfil.papel == "admin")
+
+
+def admin_required(view_func):
+    """Permite o acesso apenas a administradores ou superutilizadores."""
+
+    @login_required
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        if not _e_admin(request.user):
+            raise PermissionDenied(
+                "Apenas administradores podem aceder a esta área."
+            )
+
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
 
 
 # ---------------------------------------------------------------------------
@@ -145,26 +168,6 @@ def _responder_acao(request):
     return _redirecionar_para_lista(request)
 
 
-def _atualizar_estado_equipamento(avaria, novo_estado):
-    """Mantém o estado do equipamento coerente com o estado da avaria."""
-    equipamento = avaria.equipamento
-
-    if novo_estado == "em_reparacao":
-        equipamento.estado = "manutencao"
-        equipamento.save(update_fields=["estado"])
-
-    elif novo_estado == "resolvido":
-        # Se ainda houver outra avaria aberta para o mesmo equipamento,
-        # ele continua avariado; caso contrário, volta a operacional.
-        existe_outra_aberta = (
-            equipamento.avarias.exclude(pk=avaria.pk)
-            .filter(estado__in=["pendente", "em_reparacao"])
-            .exists()
-        )
-        equipamento.estado = "avariado" if existe_outra_aberta else "operacional"
-        equipamento.save(update_fields=["estado"])
-
-
 # ---------------------------------------------------------------------------
 # Views
 # ---------------------------------------------------------------------------
@@ -208,14 +211,19 @@ def assumir_avaria(request, pk):
         messages.info(request, "Esta avaria já está atribuída a ti.")
 
     else:
-        avaria.tecnico_atribuido = request.user
+        with transaction.atomic():
+            avaria.tecnico_atribuido = request.user
 
-        # Ao assumir uma avaria pendente, ela entra automaticamente em reparação.
-        if avaria.estado == "pendente":
-            avaria.estado = "em_reparacao"
-            _atualizar_estado_equipamento(avaria, "em_reparacao")
+            # Ao assumir uma avaria pendente, ela entra automaticamente em reparação.
+            if avaria.estado == "pendente":
+                avaria.estado = "em_reparacao"
 
-        avaria.save()
+            avaria.save()
+            recalcular_estado_equipamento(
+                avaria.equipamento,
+                actor=request.user,
+            )
+
         messages.success(
             request,
             f"Avaria #{avaria.pk} assumida. Bom trabalho na reparação!",
@@ -273,18 +281,223 @@ def alterar_estado_avaria(request, pk):
 
     # Se um técnico iniciar a reparação de uma avaria ainda sem responsável,
     # a atribuição é feita automaticamente.
-    if novo_estado == "em_reparacao" and not avaria.tecnico_atribuido:
-        avaria.tecnico_atribuido = request.user
+    with transaction.atomic():
+        if novo_estado == "em_reparacao" and not avaria.tecnico_atribuido:
+            avaria.tecnico_atribuido = request.user
 
-    avaria.estado = novo_estado
-    avaria.save()
-    _atualizar_estado_equipamento(avaria, novo_estado)
+        avaria.estado = novo_estado
+        avaria.save()
+        recalcular_estado_equipamento(
+            avaria.equipamento,
+            actor=request.user,
+        )
 
     messages.success(
         request,
         f"Avaria #{avaria.pk} atualizada para {avaria.get_estado_display()}.",
     )
     return _responder_acao(request)
+
+
+@login_required
+def reportar_avaria(request):
+    """Permite a qualquer utilizador autenticado reportar uma avaria."""
+    if request.method == "POST":
+        form = AvariaForm(request.POST)
+        equipamento_id = request.POST.get("equipamento", "").strip()
+        equipamento = (
+            Equipamento.objects.filter(pk=equipamento_id).first()
+            if equipamento_id.isdigit()
+            else None
+        )
+
+        if equipamento is None:
+            form.add_error(None, "Selecione um equipamento válido.")
+
+        elif equipamento.estado == "abatido":
+            form.add_error(
+                None,
+                "Não é possível reportar avarias para um equipamento abatido.",
+            )
+
+        if not form.errors:
+            avaria = form.save(commit=False)
+            avaria.equipamento = equipamento
+            avaria.reportado_por = request.user
+            avaria.estado = "pendente"
+            avaria.save()
+
+            messages.success(
+                request,
+                f"Avaria #{avaria.pk} registada com sucesso.",
+            )
+            return redirect("equipamentos:minhas_avarias")
+
+    else:
+        form = AvariaForm()
+
+    contexto = {
+        "form": form,
+        "equipamento": None,
+        "equipamentos": Equipamento.objects.exclude(estado="abatido").order_by(
+            "codigo"
+        ),
+    }
+    return render(request, "equipamentos/reportar_avaria.html", contexto)
+
+
+@login_required
+def reportar_avaria_equipamento(request, pk):
+    """Reporta uma avaria para o equipamento identificado no URL."""
+    equipamento = get_object_or_404(Equipamento, pk=pk)
+
+    if equipamento.estado == "abatido":
+        messages.error(
+            request,
+            "Não é possível reportar avarias para um equipamento abatido.",
+        )
+        return redirect(
+            "equipamentos:equipamento_detalhe",
+            pk=equipamento.pk,
+        )
+
+    if request.method == "POST":
+        form = AvariaForm(request.POST)
+        equipamento_id = request.POST.get("equipamento", "").strip()
+
+        if equipamento_id and equipamento_id != str(equipamento.pk):
+            form.add_error(
+                None,
+                "Os dados do equipamento não correspondem ao pedido.",
+            )
+
+        if not form.errors:
+            avaria = form.save(commit=False)
+            avaria.equipamento = equipamento
+            avaria.reportado_por = request.user
+            avaria.estado = "pendente"
+            avaria.save()
+
+            messages.success(
+                request,
+                f"Avaria #{avaria.pk} registada para {equipamento.codigo}.",
+            )
+            return redirect("equipamentos:minhas_avarias")
+
+    else:
+        form = AvariaForm()
+
+    contexto = {
+        "form": form,
+        "equipamento": equipamento,
+    }
+    return render(request, "equipamentos/reportar_avaria.html", contexto)
+
+
+@login_required
+def minhas_avarias(request):
+    """Lista as avarias reportadas pelo utilizador autenticado."""
+    avarias = (
+        Avaria.objects.filter(reportado_por=request.user)
+        .select_related("equipamento", "tecnico_atribuido")
+        .order_by("-data_registo")
+    )
+    return render(
+        request,
+        "equipamentos/minhas_avarias.html",
+        {"avarias": avarias},
+    )
+
+
+@login_required
+def avaria_detalhe(request, pk):
+    """Detalhe de uma avaria, com as intervenções já realizadas."""
+    avaria = get_object_or_404(
+        Avaria.objects.select_related(
+            "equipamento",
+            "reportado_por",
+            "tecnico_atribuido",
+        ),
+        pk=pk,
+    )
+    intervencoes = avaria.intervencoes.select_related("tecnico").order_by(
+        "-data_intervencao"
+    )
+
+    pode_registar_intervencao = _e_admin(request.user) or (
+        avaria.tecnico_atribuido == request.user
+    )
+    intervencao_form = (
+        IntervencaoForm() if pode_registar_intervencao else None
+    )
+
+    contexto = {
+        "avaria": avaria,
+        "intervencoes": intervencoes,
+        "pode_registar_intervencao": pode_registar_intervencao,
+        "intervencao_form": intervencao_form,
+        "e_admin": _e_admin(request.user),
+    }
+    return render(request, "equipamentos/avaria_detalhe.html", contexto)
+
+
+@tecnico_ou_admin_required
+@require_POST
+def registar_intervencao(request, pk):
+    """Regista uma intervenção do técnico autenticado numa avaria."""
+    avaria = get_object_or_404(Avaria, pk=pk)
+    form = IntervencaoForm(request.POST)
+
+    if form.is_valid():
+        intervencao = form.save(commit=False)
+        intervencao.avaria = avaria
+        intervencao.tecnico = request.user
+        intervencao.save()
+
+        messages.success(
+            request,
+            f"Intervenção registada na avaria #{avaria.pk}.",
+        )
+    else:
+        messages.error(
+            request,
+            "Não foi possível registar a intervenção. Verifica os dados.",
+        )
+
+    return redirect("equipamentos:avaria_detalhe", pk=avaria.pk)
+
+
+@admin_required
+@require_POST
+def corrigir_estado(request, pk):
+    """Correção manual do estado de um equipamento, com motivo obrigatório."""
+    equipamento = get_object_or_404(Equipamento, pk=pk)
+    form = CorrigirEstadoForm(request.POST)
+
+    if form.is_valid():
+        with transaction.atomic():
+            recalcular_estado_equipamento(
+                equipamento,
+                actor=request.user,
+                origem="manual",
+                motivo=form.cleaned_data["motivo"],
+            )
+
+        messages.success(
+            request,
+            f"Estado de {equipamento.codigo} corrigido para"
+            f" {equipamento.get_estado_display()}.",
+        )
+    else:
+        messages.error(
+            request,
+            "Não foi possível corrigir o estado. O motivo é obrigatório.",
+        )
+
+    return redirect(
+        "equipamentos:equipamento_detalhe",
+        pk=equipamento.pk,
+    )
 
 
 @tecnico_ou_admin_required
@@ -409,13 +622,18 @@ def equipamento_detalhe(request, pk):
 def equipamento_qrcode(request, pk):
     """Gera o QR code PNG do equipamento, sem guardar ficheiros no disco.
 
-    O QR contém o URL absoluto da ficha do equipamento. O URL absoluto é
-    importante para que possa ser lido por um telemóvel na rede local
-    (ex.: http://192.168.1.10:8000/equipamentos/3/).
+    O QR contém o URL absoluto da página de reporte de avaria do equipamento.
+    O URL absoluto é importante para que possa ser lido por um telemóvel na
+    rede local (ex.: http://192.168.1.10:8000/equipamentos/3/reportar/).
     """
     equipamento = get_object_or_404(Equipamento, pk=pk)
 
-    url_equipamento = request.build_absolute_uri(equipamento.get_absolute_url())
+    url_equipamento = request.build_absolute_uri(
+        reverse(
+            "equipamentos:reportar_avaria_equipamento",
+            kwargs={"pk": equipamento.pk},
+        )
+    )
 
     qr = qrcode.QRCode(
         version=None,

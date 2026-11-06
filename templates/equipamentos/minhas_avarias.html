@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Minhas avarias - Manutenção UCM-FEG</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    <style>
+        .badge {
+            display: inline-block;
+            padding: 0.22rem 0.6rem;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .badge-prioridade-baixa   { background: #4b5563; }
+        .badge-prioridade-media   { background: #b45309; }
+        .badge-prioridade-alta    { background: #c2410c; }
+        .badge-prioridade-urgente { background: #b91c1c; }
+
+        .badge-estado-pendente     { background: #b45309; }
+        .badge-estado-em_reparacao { background: #1d4ed8; }
+        .badge-estado-resolvido    { background: #15803d; }
+        .badge-estado-cancelado    { background: #4b5563; }
+
+        .mensagem {
+            margin-bottom: 1rem;
+            padding: 0.8rem 1rem;
+            border-radius: var(--pico-border-radius);
+        }
+
+        .mensagem-success { background: #dcfce7; color: #14532d; }
+        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
+        .mensagem-warning { background: #fef3c7; color: #78350f; }
+        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
+
+        .texto-suave {
+            color: var(--pico-muted-color);
+            font-size: 0.82rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
+                <li><a href="{% url 'home' %}">Início</a></li>
+                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
+                <li><a href="{% url 'equipamentos:minhas_avarias' %}" aria-current="page">Minhas avarias</a></li>
+            </ul>
+            <ul>
+                <li>
+                    Olá, <strong>{{ request.user.username }}</strong>
+                    {% if request.user.perfil %}
+                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
+                    {% endif %}
+                </li>
+                <li>
+                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
+                            Sair
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <hgroup>
+            <h1>Minhas avarias</h1>
+            <p>Avarias que reportaste ao laboratório.</p>
+        </hgroup>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mensagem mensagem-{{ message.tags }}" role="status">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <p>
+            <a href="{% url 'equipamentos:reportar_avaria' %}" role="button">
+                Reportar nova avaria
+            </a>
+        </p>
+
+        <article>
+            <header>
+                <strong>{{ avarias|length }} avaria{{ avarias|length|pluralize:"s" }}</strong>
+            </header>
+
+            <div style="overflow-x: auto;">
+                <table class="striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">#</th>
+                            <th scope="col">Equipamento</th>
+                            <th scope="col">Descrição</th>
+                            <th scope="col">Prioridade</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Registo</th>
+                            <th scope="col">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for avaria in avarias %}
+                            <tr>
+                                <td><strong>#{{ avaria.pk }}</strong></td>
+                                <td>
+                                    <strong>{{ avaria.equipamento.codigo }}</strong><br>
+                                    <small>{{ avaria.equipamento.marca_modelo }}</small>
+                                </td>
+                                <td>{{ avaria.descricao|truncatechars:120 }}</td>
+                                <td>
+                                    <span class="badge badge-prioridade-{{ avaria.prioridade }}">
+                                        {{ avaria.get_prioridade_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-estado-{{ avaria.estado }}">
+                                        {{ avaria.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td><small>{{ avaria.data_registo|date:"d/m/Y H:i" }}</small></td>
+                                <td>
+                                    <a href="{% url 'equipamentos:avaria_detalhe' avaria.pk %}">
+                                        Ver detalhe
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7">
+                                    <p><strong>Ainda não reportaste avarias.</strong></p>
+                                    <p class="texto-suave">
+                                        Usa o botão acima ou lê o QR code de um equipamento.
+                                    </p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </main>
+</body>
+</html>

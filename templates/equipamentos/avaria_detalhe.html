@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Avaria #{{ avaria.pk }} - Manutenção UCM-FEG</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    <style>
+        .badge {
+            display: inline-block;
+            padding: 0.22rem 0.6rem;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .badge-prioridade-baixa   { background: #4b5563; }
+        .badge-prioridade-media   { background: #b45309; }
+        .badge-prioridade-alta    { background: #c2410c; }
+        .badge-prioridade-urgente { background: #b91c1c; }
+
+        .badge-estado-pendente     { background: #b45309; }
+        .badge-estado-em_reparacao { background: #1d4ed8; }
+        .badge-estado-resolvido    { background: #15803d; }
+        .badge-estado-cancelado    { background: #4b5563; }
+
+        .mensagem {
+            margin-bottom: 1rem;
+            padding: 0.8rem 1rem;
+            border-radius: var(--pico-border-radius);
+        }
+
+        .mensagem-success { background: #dcfce7; color: #14532d; }
+        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
+        .mensagem-warning { background: #fef3c7; color: #78350f; }
+        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
+
+        .texto-suave {
+            color: var(--pico-muted-color);
+            font-size: 0.82rem;
+        }
+
+        .intervencao {
+            border-left: 4px solid var(--pico-primary);
+            padding-left: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .erros {
+            color: #b91c1c;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
+                <li><a href="{% url 'home' %}">Início</a></li>
+                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
+                <li><a href="{% url 'equipamentos:minhas_avarias' %}">Minhas avarias</a></li>
+            </ul>
+            <ul>
+                <li>
+                    Olá, <strong>{{ request.user.username }}</strong>
+                    {% if request.user.perfil %}
+                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
+                    {% endif %}
+                </li>
+                <li>
+                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
+                            Sair
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <p>
+            <a href="{% url 'equipamentos:minhas_avarias' %}">&larr; Voltar às minhas avarias</a>
+        </p>
+
+        <hgroup>
+            <h1>Avaria #{{ avaria.pk }}</h1>
+            <p>{{ avaria.equipamento.codigo }} · {{ avaria.equipamento.marca_modelo }}</p>
+        </hgroup>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mensagem mensagem-{{ message.tags }}" role="status">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <article>
+            <header>
+                <h2>Dados da avaria</h2>
+            </header>
+
+            <table>
+                <tbody>
+                    <tr>
+                        <th scope="row">Equipamento</th>
+                        <td>
+                            <a href="{{ avaria.equipamento.get_absolute_url }}">
+                                <strong>{{ avaria.equipamento.codigo }}</strong>
+                            </a>
+                            · {{ avaria.equipamento.marca_modelo }}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Estado</th>
+                        <td>
+                            <span class="badge badge-estado-{{ avaria.estado }}">
+                                {{ avaria.get_estado_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Prioridade</th>
+                        <td>
+                            <span class="badge badge-prioridade-{{ avaria.prioridade }}">
+                                {{ avaria.get_prioridade_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Reportada por</th>
+                        <td>{{ avaria.reportado_por.username|default:"—" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Técnico atribuído</th>
+                        <td>
+                            {% if avaria.tecnico_atribuido %}
+                                {{ avaria.tecnico_atribuido.username }}
+                            {% else %}
+                                <em class="texto-suave">Não atribuída</em>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Data de registo</th>
+                        <td>{{ avaria.data_registo|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Última atualização</th>
+                        <td>{{ avaria.data_atualizacao|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Descrição</th>
+                        <td>{{ avaria.descricao|linebreaksbr }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </article>
+
+        <article>
+            <header>
+                <h2>Intervenções</h2>
+                <p><small>{{ intervencoes|length }} intervenção{{ intervencoes|length|pluralize:"ões" }} registada{{ intervencoes|length|pluralize:"s" }}.</small></p>
+            </header>
+
+            {% for intervencao in intervencoes %}
+                <div class="intervencao">
+                    <p>
+                        <strong>{{ intervencao.data_intervencao|date:"d/m/Y H:i" }}</strong>
+                        · {{ intervencao.tecnico.username|default:"Técnico não identificado" }}
+                    </p>
+                    <p>{{ intervencao.detalhes_reparacao|linebreaksbr }}</p>
+                    {% if intervencao.pecas_substituidas %}
+                        <p><strong>Peças substituídas:</strong> {{ intervencao.pecas_substituidas|linebreaksbr }}</p>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <p class="texto-suave">Ainda não existem intervenções registadas.</p>
+            {% endfor %}
+        </article>
+
+        {% if pode_registar_intervencao %}
+            <article>
+                <header>
+                    <h2>Registar intervenção</h2>
+                </header>
+
+                <form method="post" action="{% url 'equipamentos:registar_intervencao' avaria.pk %}">
+                    {% csrf_token %}
+
+                    <label for="{{ intervencao_form.detalhes_reparacao.id_for_label }}">
+                        {{ intervencao_form.detalhes_reparacao.label }}
+                        {{ intervencao_form.detalhes_reparacao }}
+                    </label>
+                    {% if intervencao_form.detalhes_reparacao.errors %}
+                        <div class="erros">{{ intervencao_form.detalhes_reparacao.errors }}</div>
+                    {% endif %}
+
+                    <label for="{{ intervencao_form.pecas_substituidas.id_for_label }}">
+                        {{ intervencao_form.pecas_substituidas.label }}
+                        {{ intervencao_form.pecas_substituidas }}
+                    </label>
+                    {% if intervencao_form.pecas_substituidas.errors %}
+                        <div class="erros">{{ intervencao_form.pecas_substituidas.errors }}</div>
+                    {% endif %}
+
+                    <button type="submit">Guardar intervenção</button>
+                </form>
+            </article>
+        {% endif %}
+    </main>
+</body>
+</html>

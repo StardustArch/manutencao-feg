@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reportar avaria - Manutenção UCM-FEG</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+
+    <style>
+        .mensagem {
+            margin-bottom: 1rem;
+            padding: 0.8rem 1rem;
+            border-radius: var(--pico-border-radius);
+        }
+
+        .mensagem-success { background: #dcfce7; color: #14532d; }
+        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
+        .mensagem-warning { background: #fef3c7; color: #78350f; }
+        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
+
+        .erros {
+            color: #b91c1c;
+            font-size: 0.85rem;
+        }
+
+        .erros ul {
+            margin: 0.35rem 0 0;
+        }
+    </style>
+</head>
+<body>
+    <header class="container">
+        <nav>
+            <ul>
+                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
+                <li><a href="{% url 'home' %}">Início</a></li>
+                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
+                <li><a href="{% url 'equipamentos:minhas_avarias' %}" aria-current="page">Minhas avarias</a></li>
+            </ul>
+            <ul>
+                <li>
+                    Olá, <strong>{{ request.user.username }}</strong>
+                    {% if request.user.perfil %}
+                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
+                    {% endif %}
+                </li>
+                <li>
+                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
+                            Sair
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <p>
+            <a href="{% url 'equipamentos:minhas_avarias' %}">&larr; Voltar às minhas avarias</a>
+        </p>
+
+        <hgroup>
+            <h1>Reportar avaria</h1>
+            {% if equipamento %}
+                <p>
+                    Equipamento:
+                    <strong>{{ equipamento.codigo }}</strong> ·
+                    {{ equipamento.marca_modelo }}
+                </p>
+            {% else %}
+                <p>Indica o equipamento e descreve o problema encontrado.</p>
+            {% endif %}
+        </hgroup>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mensagem mensagem-{{ message.tags }}" role="status">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <article>
+            <form method="post" action="">
+                {% csrf_token %}
+
+                {{ form.non_field_errors }}
+
+                {% if equipamento %}
+                    <input type="hidden" name="equipamento" value="{{ equipamento.pk }}">
+                {% else %}
+                    <label for="id_equipamento">
+                        Equipamento
+                        <select id="id_equipamento" name="equipamento" required>
+                            <option value="">Selecione um equipamento…</option>
+                            {% for item in equipamentos %}
+                                <option value="{{ item.pk }}"
+                                    {% if request.POST.equipamento == item.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ item.codigo }} — {{ item.marca_modelo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                {% endif %}
+
+                <label for="{{ form.descricao.id_for_label }}">
+                    {{ form.descricao.label }}
+                    {{ form.descricao }}
+                </label>
+                {% if form.descricao.errors %}
+                    <div class="erros">{{ form.descricao.errors }}</div>
+                {% endif %}
+
+                <fieldset>
+                    <legend>{{ form.prioridade.label }}</legend>
+                    {{ form.prioridade }}
+                    {% if form.prioridade.errors %}
+                        <div class="erros">{{ form.prioridade.errors }}</div>
+                    {% endif %}
+                </fieldset>
+
+                <button type="submit">Registar avaria</button>
+            </form>
+        </article>
+    </main>
+</body>
+</html>
