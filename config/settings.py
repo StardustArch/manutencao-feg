@@ -26,7 +26,9 @@ SECRET_KEY = 'django-insecure-7q$rl3+6mf$ll83f9vdh@p6zml@&+d8z7gb2hli#^xweqr3t&)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"] + [
+    h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h
+]
 
 
 # Application definition
@@ -38,9 +40,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
     'equipamentos',
     'contas',
 ]
+
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -50,6 +59,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
+]
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -64,6 +79,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'contas.context_processors.google_oauth',
             ],
         },
     },
@@ -119,6 +135,36 @@ TIME_ZONE = 'Africa/Maputo'
 LOGIN_URL = '/contas/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/contas/login/'
+
+# Login social Google (apenas domínios institucionais).
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+ALLOWED_EMAIL_DOMAINS = [
+    dominio.strip().lower()
+    for dominio in os.environ.get(
+        "ALLOWED_EMAIL_DOMAINS", "ucm.ac.mz,estudante.ucm.ac.mz"
+    ).split(",")
+    if dominio.strip()
+]
+
+SOCIALACCOUNT_LOGIN_ON_GET = True
+SOCIALACCOUNT_ADAPTER = "contas.adapters.ContasSocialAccountAdapter"
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        # O parâmetro "hd" apenas sugere a conta no ecrã do Google. A validação
+        # efetiva do domínio é feita no servidor pelo adapter.
+        "AUTH_PARAMS": {
+            "hd": ALLOWED_EMAIL_DOMAINS[0] if ALLOWED_EMAIL_DOMAINS else "",
+        },
+        "APP": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "secret": GOOGLE_CLIENT_SECRET,
+            "key": "",
+            "name": "Google",
+        },
+    }
+}
 
 # URL público do site, usado nos QR codes (ex.: http://192.168.1.10:8000).
 # Quando vazio, é usado o URL absoluto do pedido atual.
