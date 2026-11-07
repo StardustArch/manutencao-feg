@@ -2,91 +2,24 @@
 
 {% block title %}{{ equipamento.codigo }} - Equipamento{% endblock %}
 
+{% block page_title %}{{ equipamento.codigo }}{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Início</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ equipamento.codigo }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
 {% block extra_head %}
-<style>
-        .badge {
-            display: inline-block;
-            padding: 0.22rem 0.6rem;
-            border-radius: 999px;
-            color: #fff;
-            font-size: 0.75rem;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .badge-estado-operacional { background: #15803d; }
-        .badge-estado-avariado    { background: #b91c1c; }
-        .badge-estado-manutencao  { background: #1d4ed8; }
-        .badge-estado-abatido     { background: #6b7280; }
-
-        .badge-prioridade-baixa   { background: #4b5563; }
-        .badge-prioridade-media   { background: #b45309; }
-        .badge-prioridade-alta    { background: #c2410c; }
-        .badge-prioridade-urgente { background: #b91c1c; }
-
-        .badge-avaria-pendente     { background: #b45309; }
-        .badge-avaria-em_reparacao { background: #1d4ed8; }
-        .badge-avaria-resolvido    { background: #15803d; }
-        .badge-avaria-cancelado    { background: #4b5563; }
-
-        .ficha-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
-            gap: 1.5rem;
-            align-items: start;
-        }
-
-        @media (max-width: 860px) {
-            .ficha-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .ficha-grid article {
-            margin-bottom: 0;
-        }
-
-        .qr-card {
-            text-align: center;
-        }
-
-        .qr-card img {
-            display: block;
-            width: 230px;
-            max-width: 100%;
-            height: auto;
-            margin: 0.75rem auto;
-            padding: 8px;
-            background: #fff;
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: 8px;
-            image-rendering: pixelated;
-        }
-
-        .qr-url {
-            font-size: 0.72rem;
-            color: var(--pico-muted-color);
-            word-break: break-all;
-            margin-bottom: 1rem;
-        }
-
-        .qr-card .acoes-qr {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .qr-card .acoes-qr a,
-        .qr-card .acoes-qr button {
-            margin: 0;
-            width: 100%;
-        }
-
+    <style>
         .etiqueta {
             margin-top: 1.25rem;
             padding: 1rem;
             border: 2px dashed #111827;
-            border-radius: 8px;
             text-align: center;
         }
 
@@ -98,60 +31,20 @@
         .etiqueta .etiqueta-curta {
             margin: 0;
             font-size: 0.8rem;
-            color: var(--pico-muted-color);
+            color: #6c757d;
         }
 
-        .badge-lista {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .acoes-ficha {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-            margin-bottom: 1.25rem;
-        }
-
-        .acoes-ficha > * {
-            margin: 0;
-        }
-
-        .historico-estados td,
-        .historico-estados th {
-            vertical-align: middle;
-        }
-
-        .texto-suave {
-            color: var(--pico-muted-color);
-            font-size: 0.82rem;
-        }
-
-        .mensagem {
-            margin-bottom: 1rem;
-            padding: 0.8rem 1rem;
-            border-radius: var(--pico-border-radius);
-        }
-
-        .mensagem-success { background: #dcfce7; color: #14532d; }
-        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
-        .mensagem-warning { background: #fef3c7; color: #78350f; }
-        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
-
-        .tabela-avarias-equipamento {
-            min-width: 720px;
-        }
-
-        .tabela-avarias-equipamento td,
-        .tabela-avarias-equipamento th {
-            vertical-align: middle;
+        .qr-url {
+            font-size: 0.72rem;
+            color: #6c757d;
+            word-break: break-all;
         }
 
         @media print {
-            header,
-            .no-print {
+            .no-print,
+            .ucm-topbar,
+            .ucm-nav,
+            .ucm-page-header {
                 display: none !important;
             }
 
@@ -165,145 +58,133 @@
                 margin: 0;
             }
 
-            .ficha-grid {
-                display: block;
-            }
-
             .etiqueta {
                 border-style: solid;
                 page-break-inside: avoid;
             }
 
-            article {
+            .card {
                 border: 0 !important;
                 box-shadow: none !important;
-                padding: 0 !important;
             }
         }
-    
-</style>
+    </style>
 {% endblock %}
 
 {% block content %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="mensagem mensagem-{{ message.tags }}" role="status">
-                    {{ message }}
+    <p class="no-print">
+        <a href="{% url 'equipamentos:equipamentos_lista' %}">&larr; Voltar ao inventário</a>
+    </p>
+
+    <p class="text-muted">
+        {{ equipamento.marca_modelo }} · {{ equipamento.get_tipo_display }}
+    </p>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        {% include "equipamentos/partials/_badge_equipamento.html" with estado=equipamento.estado rotulo=equipamento.get_estado_display %}
+        <span class="text-muted small">Registado no inventário do laboratório</span>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-4 no-print">
+        <a href="{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}"
+           class="btn btn-primary">
+            Reportar avaria
+        </a>
+        <a href="{% url 'equipamentos:equipamentos_lista' %}" class="btn btn-outline-secondary">
+            Voltar ao inventário
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-8">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Dados do equipamento</h2>
                 </div>
-            {% endfor %}
-        {% endif %}
-
-        <p class="no-print">
-            <a href="{% url 'equipamentos:equipamentos_lista' %}">&larr; Voltar ao inventário</a>
-        </p>
-
-        <hgroup>
-            <h1>{{ equipamento.codigo }}</h1>
-            <p>{{ equipamento.marca_modelo }} · {{ equipamento.get_tipo_display }}</p>
-        </hgroup>
-
-        <div class="badge-lista">
-            <span class="badge badge-estado-{{ equipamento.estado }}">
-                {{ equipamento.get_estado_display }}
-            </span>
-            <span class="texto-suave">Registado no inventário do laboratório</span>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <tbody>
+                                <tr>
+                                    <th scope="row" class="w-25">Código de património</th>
+                                    <td><strong>{{ equipamento.codigo }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Tipo</th>
+                                    <td>{{ equipamento.get_tipo_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Marca / Modelo</th>
+                                    <td>{{ equipamento.marca_modelo }}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Localização</th>
+                                    <td>{{ equipamento.localizacao }}</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Estado atual</th>
+                                    <td>
+                                        {% include "equipamentos/partials/_badge_equipamento.html" with estado=equipamento.estado rotulo=equipamento.get_estado_display %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Data de aquisição</th>
+                                    <td>
+                                        {% if equipamento.data_aquisicao %}
+                                            {{ equipamento.data_aquisicao|date:"d/m/Y" }}
+                                        {% else %}
+                                            <span class="text-muted">Não registada</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Observações</th>
+                                    <td>
+                                        {% if equipamento.observacoes %}
+                                            {{ equipamento.observacoes|linebreaksbr }}
+                                        {% else %}
+                                            <span class="text-muted">Sem observações.</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="acoes-ficha no-print">
-            <a href="{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}"
-               role="button">
-                Reportar avaria
-            </a>
-            <a href="{% url 'equipamentos:equipamentos_lista' %}"
-               role="button" class="secondary outline">
-                Voltar ao inventário
-            </a>
-        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card text-center">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">QR code</h2>
+                    <p class="mb-0"><small class="text-muted">Aponta para o reporte de avaria deste equipamento.</small></p>
+                </div>
+                <div class="card-body">
+                    <img src="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
+                         class="img-thumbnail mx-auto d-block"
+                         width="230"
+                         height="230"
+                         alt="QR code do equipamento {{ equipamento.codigo }}">
 
-        <div class="ficha-grid">
-            <article>
-                <header>
-                    <h2>Dados do equipamento</h2>
-                </header>
+                    <p class="qr-url mt-2">
+                        {{ request.scheme }}://{{ request.get_host }}{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}
+                    </p>
 
-                <table>
-                    <tbody>
-                        <tr>
-                            <th scope="row">Código de património</th>
-                            <td><strong>{{ equipamento.codigo }}</strong></td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Tipo</th>
-                            <td>{{ equipamento.get_tipo_display }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Marca / Modelo</th>
-                            <td>{{ equipamento.marca_modelo }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Localização</th>
-                            <td>{{ equipamento.localizacao }}</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Estado atual</th>
-                            <td>
-                                <span class="badge badge-estado-{{ equipamento.estado }}">
-                                    {{ equipamento.get_estado_display }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Data de aquisição</th>
-                            <td>
-                                {% if equipamento.data_aquisicao %}
-                                    {{ equipamento.data_aquisicao|date:"d/m/Y" }}
-                                {% else %}
-                                    <span class="texto-suave">Não registada</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Observações</th>
-                            <td>
-                                {% if equipamento.observacoes %}
-                                    {{ equipamento.observacoes|linebreaksbr }}
-                                {% else %}
-                                    <span class="texto-suave">Sem observações.</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </article>
-
-            <article class="qr-card">
-                <header>
-                    <h2>QR code</h2>
-                    <p><small>Aponta para o reporte de avaria deste equipamento.</small></p>
-                </header>
-
-                <img src="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
-                     width="230"
-                     height="230"
-                     alt="QR code do equipamento {{ equipamento.codigo }}">
-
-                <p class="qr-url">
-                    {{ request.scheme }}://{{ request.get_host }}{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}
-                </p>
-
-                <div class="acoes-qr no-print">
-                    <a href="{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}"
-                       role="button">
-                        Reportar avaria
-                    </a>
-                    <a href="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
-                       download
-                       role="button" class="outline">
-                        Descarregar QR (PNG)
-                    </a>
-                    <button type="button" class="secondary outline" onclick="window.print()">
-                        Imprimir etiqueta
-                    </button>
+                    <div class="d-flex flex-column gap-2 no-print">
+                        <a href="{% url 'equipamentos:reportar_avaria_equipamento' equipamento.pk %}"
+                           class="btn btn-primary w-100">
+                            Reportar avaria
+                        </a>
+                        <a href="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
+                           download
+                           class="btn btn-outline-primary w-100">
+                            Descarregar QR (PNG)
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="window.print()">
+                            Imprimir etiqueta
+                        </button>
+                    </div>
                 </div>
 
                 <div class="etiqueta">
@@ -314,163 +195,165 @@
                         Estado: {{ equipamento.get_estado_display }}
                     </p>
                 </div>
-            </article>
+            </div>
         </div>
+    </div>
 
-        {% if corrigir_estado_form %}
-            <article class="no-print" style="margin-top: 1.5rem;">
-                <header>
-                    <h2>Corrigir estado</h2>
-                    <p><small>
+    {% if corrigir_estado_form %}
+        <div class="card mt-4 no-print">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Corrigir estado</h2>
+                <p class="mb-0">
+                    <small class="text-muted">
                         Correção manual do estado do equipamento. O motivo é
                         obrigatório e fica registado no histórico.
-                    </small></p>
-                </header>
-
-                <form method="post"
-                      action="{% url 'equipamentos:corrigir_estado' equipamento.pk %}">
+                    </small>
+                </p>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'equipamentos:corrigir_estado' equipamento.pk %}">
                     {% csrf_token %}
 
-                    <div class="grid">
-                        <label for="{{ corrigir_estado_form.estado.id_for_label }}">
-                            {{ corrigir_estado_form.estado.label }}
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label for="{{ corrigir_estado_form.estado.id_for_label }}" class="form-label">
+                                {{ corrigir_estado_form.estado.label }}
+                            </label>
                             {{ corrigir_estado_form.estado }}
-                        </label>
+                        </div>
 
-                        <label for="{{ corrigir_estado_form.motivo.id_for_label }}">
-                            {{ corrigir_estado_form.motivo.label }}
+                        <div class="col-12 col-md-8">
+                            <label for="{{ corrigir_estado_form.motivo.id_for_label }}" class="form-label">
+                                {{ corrigir_estado_form.motivo.label }}
+                            </label>
                             {{ corrigir_estado_form.motivo }}
-                        </label>
+                        </div>
                     </div>
 
                     {% if corrigir_estado_form.errors %}
-                        <div class="mensagem mensagem-error" role="alert">
+                        <div class="alert alert-danger mt-3 mb-0" role="alert">
                             Verifica o estado e o motivo indicados.
                             {{ corrigir_estado_form.errors }}
                         </div>
                     {% endif %}
 
-                    <button type="submit" class="secondary">
+                    <button type="submit" class="btn btn-secondary mt-3">
                         Corrigir estado
                     </button>
                 </form>
-            </article>
-        {% endif %}
-
-        <article class="no-print" style="margin-top: 1.5rem;">
-            <header>
-                <h2>Histórico de avarias</h2>
-                <p><small>{{ avarias|length }} registo{{ avarias|length|pluralize:"s" }} associado{{ avarias|length|pluralize:"s" }} a este equipamento.</small></p>
-            </header>
-
-            <div style="overflow-x: auto;">
-                <table class="striped tabela-avarias-equipamento">
-                    <thead>
-                        <tr>
-                            <th scope="col">#</th>
-                            <th scope="col">Descrição</th>
-                            <th scope="col">Prioridade</th>
-                            <th scope="col">Estado</th>
-                            <th scope="col">Técnico</th>
-                            <th scope="col">Registo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for avaria in avarias %}
-                            <tr>
-                                <td><strong>#{{ avaria.pk }}</strong></td>
-                                <td>{{ avaria.descricao|truncatechars:120 }}</td>
-                                <td>
-                                    <span class="badge badge-prioridade-{{ avaria.prioridade }}">
-                                        {{ avaria.get_prioridade_display }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-avaria-{{ avaria.estado }}">
-                                        {{ avaria.get_estado_display }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if avaria.tecnico_atribuido %}
-                                        {{ avaria.tecnico_atribuido.username }}
-                                    {% else %}
-                                        <em class="texto-suave">Não atribuída</em>
-                                    {% endif %}
-                                </td>
-                                <td><small>{{ avaria.data_registo|date:"d/m/Y H:i" }}</small></td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="6">
-                                    <p><strong>Sem avarias registadas.</strong></p>
-                                    <p class="texto-suave">
-                                        Este equipamento não tem histórico de avarias.
-                                    </p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
-        </article>
+        </div>
+    {% endif %}
 
-        <article class="no-print" style="margin-top: 1.5rem;">
-            <header>
-                <h2>Histórico de estados</h2>
-                <p><small>
+    <div class="card mt-4 no-print">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Histórico de avarias</h2>
+            <p class="mb-0">
+                <small class="text-muted">
+                    {{ avarias|length }} registo{{ avarias|length|pluralize:"s" }} associado{{ avarias|length|pluralize:"s" }} a este equipamento.
+                </small>
+            </p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Descrição</th>
+                        <th scope="col">Prioridade</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Técnico</th>
+                        <th scope="col">Registo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for avaria in avarias %}
+                        <tr>
+                            <td><strong>#{{ avaria.pk }}</strong></td>
+                            <td>{{ avaria.descricao|truncatechars:120 }}</td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_prioridade.html" with prioridade=avaria.prioridade rotulo=avaria.get_prioridade_display %}
+                            </td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_avaria.html" with estado=avaria.estado rotulo=avaria.get_estado_display %}
+                            </td>
+                            <td>
+                                {% if avaria.tecnico_atribuido %}
+                                    {{ avaria.tecnico_atribuido.username }}
+                                {% else %}
+                                    <em class="text-muted">Não atribuída</em>
+                                {% endif %}
+                            </td>
+                            <td><small class="text-muted">{{ avaria.data_registo|date:"d/m/Y H:i" }}</small></td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <p class="mb-1"><strong>Sem avarias registadas.</strong></p>
+                                <p class="text-muted mb-0">
+                                    Este equipamento não tem histórico de avarias.
+                                </p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mt-4 no-print">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Histórico de estados</h2>
+            <p class="mb-0">
+                <small class="text-muted">
                     Alterações automáticas e correções manuais do estado deste
                     equipamento.
-                </small></p>
-            </header>
-
-            <div style="overflow-x: auto;">
-                <table class="striped historico-estados">
-                    <thead>
+                </small>
+            </p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Data</th>
+                        <th scope="col">Estado anterior</th>
+                        <th scope="col">Estado novo</th>
+                        <th scope="col">Origem</th>
+                        <th scope="col">Alterado por</th>
+                        <th scope="col">Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for registo in historico_estados %}
                         <tr>
-                            <th scope="col">Data</th>
-                            <th scope="col">Estado anterior</th>
-                            <th scope="col">Estado novo</th>
-                            <th scope="col">Origem</th>
-                            <th scope="col">Alterado por</th>
-                            <th scope="col">Motivo</th>
+                            <td><small class="text-muted">{{ registo.data_hora|date:"d/m/Y H:i" }}</small></td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_equipamento.html" with estado=registo.estado_anterior rotulo=registo.get_estado_anterior_display %}
+                            </td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_equipamento.html" with estado=registo.estado_novo rotulo=registo.get_estado_novo_display %}
+                            </td>
+                            <td>{{ registo.get_origem_display }}</td>
+                            <td>{{ registo.alterado_por.username|default:"—" }}</td>
+                            <td>
+                                {% if registo.motivo %}
+                                    {{ registo.motivo|linebreaksbr }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for registo in historico_estados %}
-                            <tr>
-                                <td><small>{{ registo.data_hora|date:"d/m/Y H:i" }}</small></td>
-                                <td>
-                                    <span class="badge badge-estado-{{ registo.estado_anterior }}">
-                                        {{ registo.get_estado_anterior_display }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-estado-{{ registo.estado_novo }}">
-                                        {{ registo.get_estado_novo_display }}
-                                    </span>
-                                </td>
-                                <td>{{ registo.get_origem_display }}</td>
-                                <td>{{ registo.alterado_por.username|default:"—" }}</td>
-                                <td>
-                                    {% if registo.motivo %}
-                                        {{ registo.motivo|linebreaksbr }}
-                                    {% else %}
-                                        <span class="texto-suave">—</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="6">
-                                    <p class="texto-suave">
-                                        Ainda não existem alterações de estado registadas.
-                                    </p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <p class="text-muted mb-0">
+                                    Ainda não existem alterações de estado registadas.
+                                </p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 {% endblock %}

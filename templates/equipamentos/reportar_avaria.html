@@ -2,98 +2,97 @@
 
 {% block title %}Reportar avaria - Manutenção UCM-FEG{% endblock %}
 
-{% block extra_head %}
-<style>
-        .mensagem {
-            margin-bottom: 1rem;
-            padding: 0.8rem 1rem;
-            border-radius: var(--pico-border-radius);
-        }
+{% block page_title %}Reportar avaria{% endblock %}
 
-        .mensagem-success { background: #dcfce7; color: #14532d; }
-        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
-        .mensagem-warning { background: #fef3c7; color: #78350f; }
-        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
-
-        .erros {
-            color: #b91c1c;
-            font-size: 0.85rem;
-        }
-
-        .erros ul {
-            margin: 0.35rem 0 0;
-        }
-    
-</style>
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Início</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'equipamentos:minhas_avarias' %}">Minhas avarias</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Reportar avaria</li>
+        </ol>
+    </nav>
 {% endblock %}
 
 {% block content %}
-        <p>
-            <a href="{% url 'equipamentos:minhas_avarias' %}">&larr; Voltar às minhas avarias</a>
-        </p>
-
-        <hgroup>
-            <h1>Reportar avaria</h1>
-            {% if equipamento %}
-                <p>
-                    Equipamento:
-                    <strong>{{ equipamento.codigo }}</strong> ·
-                    {{ equipamento.marca_modelo }}
-                </p>
-            {% else %}
-                <p>Indica o equipamento e descreve o problema encontrado.</p>
-            {% endif %}
-        </hgroup>
-
-        {% if messages %}
-            {% for message in messages %}
-                <div class="mensagem mensagem-{{ message.tags }}" role="status">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
-
-        <article>
-            <form method="post" action="">
-                {% csrf_token %}
-
-                {{ form.non_field_errors }}
-
-                {% if equipamento %}
-                    <input type="hidden" name="equipamento" value="{{ equipamento.pk }}">
-                {% else %}
-                    <label for="id_equipamento">
-                        Equipamento
-                        <select id="id_equipamento" name="equipamento" required>
-                            <option value="">Selecione um equipamento…</option>
-                            {% for item in equipamentos %}
-                                <option value="{{ item.pk }}"
-                                    {% if request.POST.equipamento == item.pk|stringformat:"s" %}selected{% endif %}>
-                                    {{ item.codigo }} — {{ item.marca_modelo }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                {% endif %}
-
-                <label for="{{ form.descricao.id_for_label }}">
-                    {{ form.descricao.label }}
-                    {{ form.descricao }}
-                </label>
-                {% if form.descricao.errors %}
-                    <div class="erros">{{ form.descricao.errors }}</div>
-                {% endif %}
-
-                <fieldset>
-                    <legend>{{ form.prioridade.label }}</legend>
-                    {{ form.prioridade }}
-                    {% if form.prioridade.errors %}
-                        <div class="erros">{{ form.prioridade.errors }}</div>
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-9 col-lg-7 col-xl-6">
+            <div class="card">
+                <div class="card-body">
+                    {% if equipamento %}
+                        <p class="text-muted">
+                            Equipamento:
+                            <strong>{{ equipamento.codigo }}</strong> ·
+                            {{ equipamento.marca_modelo }}
+                        </p>
+                    {% else %}
+                        <p class="text-muted">
+                            Indica o equipamento e descreve o problema encontrado.
+                        </p>
                     {% endif %}
-                </fieldset>
 
-                <button type="submit">Registar avaria</button>
-            </form>
-        </article>
-    
+                    <form method="post" action="">
+                        {% csrf_token %}
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        {% if equipamento %}
+                            <input type="hidden" name="equipamento" value="{{ equipamento.pk }}">
+                        {% else %}
+                            <div class="mb-3">
+                                <label for="id_equipamento" class="form-label">Equipamento</label>
+                                <select id="id_equipamento" name="equipamento" class="form-select" required>
+                                    <option value="">Selecione um equipamento…</option>
+                                    {% for item in equipamentos %}
+                                        <option value="{{ item.pk }}"
+                                            {% if request.POST.equipamento == item.pk|stringformat:"s" %}selected{% endif %}>
+                                            {{ item.codigo }} — {{ item.marca_modelo }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.descricao.id_for_label }}" class="form-label">
+                                {{ form.descricao.label }}
+                            </label>
+                            {{ form.descricao }}
+                            {% if form.descricao.errors %}
+                                <div class="invalid-feedback d-block">{{ form.descricao.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <fieldset class="mb-4">
+                            <legend class="form-label fs-6">{{ form.prioridade.label }}</legend>
+                            <div class="btn-group w-100" role="group" aria-label="Prioridade da avaria">
+                                {% for valor, rotulo in form.prioridade.field.choices %}
+                                    <input type="radio"
+                                           class="btn-check"
+                                           name="prioridade"
+                                           id="prioridade-{{ valor }}"
+                                           value="{{ valor }}"
+                                           autocomplete="off"
+                                           {% if form.prioridade.value == valor %}checked{% elif not form.prioridade.value and valor == "media" %}checked{% endif %}>
+                                    <label class="btn btn-outline-{% if valor == 'baixa' %}secondary{% elif valor == 'media' %}info{% elif valor == 'alta' %}warning{% else %}danger{% endif %}"
+                                           for="prioridade-{{ valor }}">
+                                        {{ rotulo }}
+                                    </label>
+                                {% endfor %}
+                            </div>
+                            {% if form.prioridade.errors %}
+                                <div class="text-danger small mt-1">{{ form.prioridade.errors }}</div>
+                            {% endif %}
+                        </fieldset>
+
+                        <button type="submit" class="btn btn-primary w-100">Registar avaria</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}

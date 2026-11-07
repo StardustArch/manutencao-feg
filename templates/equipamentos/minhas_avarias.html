@@ -2,124 +2,79 @@
 
 {% block title %}Minhas avarias - Manutenção UCM-FEG{% endblock %}
 
-{% block extra_head %}
-<style>
-        .badge {
-            display: inline-block;
-            padding: 0.22rem 0.6rem;
-            border-radius: 999px;
-            color: #fff;
-            font-size: 0.72rem;
-            font-weight: 700;
-            white-space: nowrap;
-        }
+{% block page_title %}Minhas avarias{% endblock %}
 
-        .badge-prioridade-baixa   { background: #4b5563; }
-        .badge-prioridade-media   { background: #b45309; }
-        .badge-prioridade-alta    { background: #c2410c; }
-        .badge-prioridade-urgente { background: #b91c1c; }
-
-        .badge-estado-pendente     { background: #b45309; }
-        .badge-estado-em_reparacao { background: #1d4ed8; }
-        .badge-estado-resolvido    { background: #15803d; }
-        .badge-estado-cancelado    { background: #4b5563; }
-
-        .mensagem {
-            margin-bottom: 1rem;
-            padding: 0.8rem 1rem;
-            border-radius: var(--pico-border-radius);
-        }
-
-        .mensagem-success { background: #dcfce7; color: #14532d; }
-        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
-        .mensagem-warning { background: #fef3c7; color: #78350f; }
-        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
-
-        .texto-suave {
-            color: var(--pico-muted-color);
-            font-size: 0.82rem;
-        }
-    
-</style>
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Início</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Minhas avarias</li>
+        </ol>
+    </nav>
 {% endblock %}
 
 {% block content %}
-        <hgroup>
-            <h1>Minhas avarias</h1>
-            <p>Avarias que reportaste ao laboratório.</p>
-        </hgroup>
+    <p class="text-muted">Avarias que reportaste ao laboratório.</p>
 
-        {% if messages %}
-            {% for message in messages %}
-                <div class="mensagem mensagem-{{ message.tags }}" role="status">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        {% endif %}
+    <div class="mb-3">
+        <a href="{% url 'equipamentos:reportar_avaria' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Reportar nova avaria
+        </a>
+    </div>
 
-        <p>
-            <a href="{% url 'equipamentos:reportar_avaria' %}" role="button">
-                Reportar nova avaria
-            </a>
-        </p>
+    <div class="card">
+        <div class="card-header">
+            <strong>{{ avarias|length }} avaria{{ avarias|length|pluralize:"s" }}</strong>
+        </div>
 
-        <article>
-            <header>
-                <strong>{{ avarias|length }} avaria{{ avarias|length|pluralize:"s" }}</strong>
-            </header>
-
-            <div style="overflow-x: auto;">
-                <table class="striped">
-                    <thead>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">Equipamento</th>
+                        <th scope="col">Descrição</th>
+                        <th scope="col">Prioridade</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Registo</th>
+                        <th scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for avaria in avarias %}
                         <tr>
-                            <th scope="col">#</th>
-                            <th scope="col">Equipamento</th>
-                            <th scope="col">Descrição</th>
-                            <th scope="col">Prioridade</th>
-                            <th scope="col">Estado</th>
-                            <th scope="col">Registo</th>
-                            <th scope="col">Ações</th>
+                            <td><strong>#{{ avaria.pk }}</strong></td>
+                            <td>
+                                <strong>{{ avaria.equipamento.codigo }}</strong><br>
+                                <small class="text-muted">{{ avaria.equipamento.marca_modelo }}</small>
+                            </td>
+                            <td>{{ avaria.descricao|truncatechars:120 }}</td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_prioridade.html" with prioridade=avaria.prioridade rotulo=avaria.get_prioridade_display %}
+                            </td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_avaria.html" with estado=avaria.estado rotulo=avaria.get_estado_display %}
+                            </td>
+                            <td><small class="text-muted">{{ avaria.data_registo|date:"d/m/Y H:i" }}</small></td>
+                            <td>
+                                <a href="{% url 'equipamentos:avaria_detalhe' avaria.pk %}"
+                                   class="btn btn-sm btn-outline-primary text-nowrap">
+                                    Ver detalhe
+                                </a>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for avaria in avarias %}
-                            <tr>
-                                <td><strong>#{{ avaria.pk }}</strong></td>
-                                <td>
-                                    <strong>{{ avaria.equipamento.codigo }}</strong><br>
-                                    <small>{{ avaria.equipamento.marca_modelo }}</small>
-                                </td>
-                                <td>{{ avaria.descricao|truncatechars:120 }}</td>
-                                <td>
-                                    <span class="badge badge-prioridade-{{ avaria.prioridade }}">
-                                        {{ avaria.get_prioridade_display }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-estado-{{ avaria.estado }}">
-                                        {{ avaria.get_estado_display }}
-                                    </span>
-                                </td>
-                                <td><small>{{ avaria.data_registo|date:"d/m/Y H:i" }}</small></td>
-                                <td>
-                                    <a href="{% url 'equipamentos:avaria_detalhe' avaria.pk %}">
-                                        Ver detalhe
-                                    </a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="7">
-                                    <p><strong>Ainda não reportaste avarias.</strong></p>
-                                    <p class="texto-suave">
-                                        Usa o botão acima ou lê o QR code de um equipamento.
-                                    </p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">
+                                <p class="mb-1"><strong>Ainda não reportaste avarias.</strong></p>
+                                <p class="text-muted mb-0">
+                                    Usa o botão acima ou lê o QR code de um equipamento.
+                                </p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 {% endblock %}

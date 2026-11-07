@@ -1,236 +1,163 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard - Manutenção UCM-FEG{% endblock %}
 
-{% block extra_head %}
-<style>
-        .metricas-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
+{% block page_title %}Dashboard de Manutenção{% endblock %}
 
-        .metrica-card {
-            margin: 0;
-            padding: 1.1rem 1.2rem;
-            border-left: 5px solid var(--pico-primary);
-        }
-
-        .metrica-card small {
-            display: block;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-size: 0.68rem;
-            color: var(--pico-muted-color);
-        }
-
-        .metrica-valor {
-            margin: 0.25rem 0 0;
-            font-size: 2rem;
-            font-weight: 800;
-            line-height: 1;
-        }
-
-        .metrica-card.total-equipamentos { border-left-color: #0f766e; }
-        .metrica-card.operacionais      { border-left-color: #15803d; }
-        .metrica-card.total-avarias     { border-left-color: #b45309; }
-        .metrica-card.avarias-abertas   { border-left-color: #b91c1c; }
-
-        .graficos-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .grafico-card {
-            margin: 0;
-        }
-
-        .grafico-card header h2 {
-            margin-bottom: 0;
-            font-size: 1.15rem;
-        }
-
-        .grafico-container {
-            position: relative;
-            height: 330px;
-            margin: 1rem 0;
-        }
-
-        .resumo-estados {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem 1rem;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .resumo-estados li {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.82rem;
-        }
-
-        .resumo-estados strong {
-            margin-left: 0.15rem;
-        }
-
-        .ponto {
-            width: 0.7rem;
-            height: 0.7rem;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .ponto-equipamento-operacional { background: #15803d; }
-        .ponto-equipamento-avariado    { background: #b91c1c; }
-        .ponto-equipamento-manutencao  { background: #1d4ed8; }
-        .ponto-equipamento-abatido     { background: #6b7280; }
-
-        .ponto-avaria-pendente     { background: #b45309; }
-        .ponto-avaria-em_reparacao { background: #1d4ed8; }
-        .ponto-avaria-resolvido    { background: #15803d; }
-
-        .aviso-chart {
-            padding: 0.8rem 1rem;
-            border-radius: var(--pico-border-radius);
-            background: #fef3c7;
-            color: #78350f;
-        }
-    
-</style>
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Início</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+        </ol>
+    </nav>
 {% endblock %}
 
 {% block content %}
-        <hgroup>
-            <h1>Dashboard de Manutenção</h1>
-            <p>Indicadores gerais do inventário e das avarias do Laboratório de Informática da UCM-FEG.</p>
-            <p><small>Atualizado em {% now "d/m/Y H:i" %}</small></p>
-        </hgroup>
+    <p class="text-muted">
+        Indicadores gerais do inventário e das avarias do Laboratório de Informática da UCM-FEG.
+        <br>
+        <small>Atualizado em {% now "d/m/Y H:i" %}</small>
+    </p>
 
-        <div style="display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.25rem;">
-            <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=inventario"
-               role="button" class="outline" style="width: auto;">
-                Relatório de inventário (PDF)
-            </a>
-            <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=avarias"
-               role="button" class="outline secondary" style="width: auto;">
-                Relatório de avarias (PDF)
-            </a>
-            <a href="{% url 'equipamentos:equipamentos_lista' %}"
-               role="button" class="secondary outline" style="width: auto;">
-                Ver inventário
-            </a>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=inventario" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Relatório de inventário (PDF)
+        </a>
+        <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=avarias" class="btn btn-outline-secondary">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Relatório de avarias (PDF)
+        </a>
+        <a href="{% url 'equipamentos:equipamentos_lista' %}" class="btn btn-outline-secondary">
+            Ver inventário
+        </a>
+    </div>
+
+    <!-- Cartões com os principais indicadores -->
+    <section class="row g-3 mb-4" aria-label="Métricas principais">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-info h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted d-block">Total de equipamentos</small>
+                    <p class="display-6 fw-bold mb-0">{{ total_equipamentos }}</p>
+                </div>
+            </div>
         </div>
 
-        <!-- Cartões com os principais indicadores -->
-        <section class="metricas-grid" aria-label="Métricas principais">
-            <article class="metrica-card total-equipamentos">
-                <small>Total de equipamentos</small>
-                <p class="metrica-valor">{{ total_equipamentos }}</p>
-            </article>
-
-            <article class="metrica-card operacionais">
-                <small>Equipamentos operacionais</small>
-                <p class="metrica-valor">{{ equipamentos_por_estado.operacional }}</p>
-            </article>
-
-            <article class="metrica-card total-avarias">
-                <small>Total de avarias</small>
-                <p class="metrica-valor">{{ total_avarias }}</p>
-            </article>
-
-            <article class="metrica-card avarias-abertas">
-                <small>Avarias abertas</small>
-                <p class="metrica-valor">{{ avarias_abertas }}</p>
-            </article>
-        </section>
-
-        <!-- Gráficos -->
-        <section class="graficos-grid" aria-label="Gráficos analíticos">
-            <article class="grafico-card">
-                <header>
-                    <h2>Estado dos equipamentos</h2>
-                    <p><small>Distribuição do inventário por estado atual.</small></p>
-                </header>
-
-                <div class="grafico-container">
-                    <canvas id="grafico-equipamentos"
-                            role="img"
-                            aria-label="Gráfico de rosca com a distribuição dos equipamentos por estado">
-                    </canvas>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-success h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted d-block">Equipamentos operacionais</small>
+                    <p class="display-6 fw-bold mb-0">{{ equipamentos_por_estado.operacional }}</p>
                 </div>
+            </div>
+        </div>
 
-                <ul class="resumo-estados">
-                    <li>
-                        <span class="ponto ponto-equipamento-operacional"></span>
-                        Operacional <strong>{{ equipamentos_por_estado.operacional }}</strong>
-                    </li>
-                    <li>
-                        <span class="ponto ponto-equipamento-avariado"></span>
-                        Avariado <strong>{{ equipamentos_por_estado.avariado }}</strong>
-                    </li>
-                    <li>
-                        <span class="ponto ponto-equipamento-manutencao"></span>
-                        Em Manutenção <strong>{{ equipamentos_por_estado.manutencao }}</strong>
-                    </li>
-                    <li>
-                        <span class="ponto ponto-equipamento-abatido"></span>
-                        Abatido <strong>{{ equipamentos_por_estado.abatido }}</strong>
-                    </li>
-                </ul>
-            </article>
-
-            <article class="grafico-card">
-                <header>
-                    <h2>Estado das avarias</h2>
-                    <p><small>Avarias pendentes, em reparação e resolvidas.</small></p>
-                </header>
-
-                <div class="grafico-container">
-                    <canvas id="grafico-avarias"
-                            role="img"
-                            aria-label="Gráfico de barras com a distribuição das avarias por estado">
-                    </canvas>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-warning h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted d-block">Total de avarias</small>
+                    <p class="display-6 fw-bold mb-0">{{ total_avarias }}</p>
                 </div>
+            </div>
+        </div>
 
-                <ul class="resumo-estados">
-                    <li>
-                        <span class="ponto ponto-avaria-pendente"></span>
-                        Pendente <strong>{{ avarias_por_estado.pendente }}</strong>
-                    </li>
-                    <li>
-                        <span class="ponto ponto-avaria-em_reparacao"></span>
-                        Em Reparação <strong>{{ avarias_por_estado.em_reparacao }}</strong>
-                    </li>
-                    <li>
-                        <span class="ponto ponto-avaria-resolvido"></span>
-                        Resolvido <strong>{{ avarias_por_estado.resolvido }}</strong>
-                    </li>
-                </ul>
-            </article>
-        </section>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-danger h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted d-block">Avarias abertas</small>
+                    <p class="display-6 fw-bold mb-0">{{ avarias_abertas }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-        <p id="aviso-chartjs" class="aviso-chart" hidden>
-            Não foi possível carregar o Chart.js. Os valores continuam visíveis
-            nas listas abaixo de cada gráfico.
-        </p>
-    
+    <!-- Gráficos -->
+    <section class="row g-4" aria-label="Gráficos analíticos">
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Estado dos equipamentos</h2>
+                    <p class="mb-0"><small class="text-muted">Distribuição do inventário por estado atual.</small></p>
+                </div>
+                <div class="card-body">
+                    <div style="position: relative; height: 330px;">
+                        <canvas id="grafico-equipamentos"
+                                role="img"
+                                aria-label="Gráfico de rosca com a distribuição dos equipamentos por estado">
+                        </canvas>
+                    </div>
+
+                    <ul class="list-unstyled d-flex flex-wrap gap-3 mb-0 mt-3">
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #15803d;"></span>
+                            Operacional <strong>{{ equipamentos_por_estado.operacional }}</strong>
+                        </li>
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #b91c1c;"></span>
+                            Avariado <strong>{{ equipamentos_por_estado.avariado }}</strong>
+                        </li>
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #1d4ed8;"></span>
+                            Em Manutenção <strong>{{ equipamentos_por_estado.manutencao }}</strong>
+                        </li>
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #6b7280;"></span>
+                            Abatido <strong>{{ equipamentos_por_estado.abatido }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Estado das avarias</h2>
+                    <p class="mb-0"><small class="text-muted">Avarias pendentes, em reparação e resolvidas.</small></p>
+                </div>
+                <div class="card-body">
+                    <div style="position: relative; height: 330px;">
+                        <canvas id="grafico-avarias"
+                                role="img"
+                                aria-label="Gráfico de barras com a distribuição das avarias por estado">
+                        </canvas>
+                    </div>
+
+                    <ul class="list-unstyled d-flex flex-wrap gap-3 mb-0 mt-3">
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #b45309;"></span>
+                            Pendente <strong>{{ avarias_por_estado.pendente }}</strong>
+                        </li>
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #1d4ed8;"></span>
+                            Em Reparação <strong>{{ avarias_por_estado.em_reparacao }}</strong>
+                        </li>
+                        <li class="d-flex align-items-center gap-2 small">
+                            <span class="d-inline-block rounded-circle" style="width: .7rem; height: .7rem; background: #15803d;"></span>
+                            Resolvido <strong>{{ avarias_por_estado.resolvido }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="aviso-chartjs" class="alert alert-warning mt-4" hidden>
+        Não foi possível carregar o Chart.js. Os valores continuam visíveis
+        nas listas abaixo de cada gráfico.
+    </div>
 {% endblock %}
 
 {% block extra_js %}
-<!--
+    <!--
         json_script serializa os dados de forma segura (sem interpolação manual
         de strings no JavaScript) e evita problemas de escaping/XSS.
     -->
     {{ grafico_equipamentos|json_script:"dados-grafico-equipamentos" }}
     {{ grafico_avarias|json_script:"dados-grafico-avarias" }}
 
-    <!-- Chart.js via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
     <script>
         (function () {
             if (typeof Chart === "undefined") {

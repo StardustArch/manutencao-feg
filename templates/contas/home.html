@@ -2,11 +2,138 @@
 
 {% block title %}Início - Manutenção UCM-FEG{% endblock %}
 
+{% block page_title %}Início{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item active" aria-current="page">Início</li>
+        </ol>
+    </nav>
+{% endblock %}
+
 {% block content %}
-        <article>
-            <h2>Bem-vindo ao Sistema de Gestão de Manutenção</h2>
-            <p>Laboratório de Informática da Universidade Católica de Moçambique - FEG.</p>
-            <p>O ambiente base, a base de dados, os modelos e o sistema de autenticação estão configurados com sucesso.</p>
-        </article>
-    
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title h4">
+                        <i class="bi bi-tools"></i>Bem-vindo ao Sistema de Gestão de Manutenção
+                    </h2>
+                    <p class="card-text mb-1">
+                        Laboratório de Informática da Universidade Católica de Moçambique – FEG.
+                    </p>
+                    {% if request.user.perfil %}
+                        <span class="badge text-bg-primary">{{ request.user.perfil.get_papel_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <h2 class="h5 text-uppercase text-muted mb-0">Área do utilizador</h2>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title h5">
+                        <i class="bi bi-exclamation-triangle"></i>Reportar avaria
+                    </h3>
+                    <p class="card-text flex-grow-1">
+                        Comunica um problema encontrado num equipamento do laboratório.
+                    </p>
+                    <a href="{% url 'equipamentos:reportar_avaria' %}" class="btn btn-primary w-100">
+                        Reportar avaria
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title h5">
+                        <i class="bi bi-clipboard-check"></i>Minhas avarias
+                    </h3>
+                    <p class="card-text flex-grow-1">
+                        Acompanha o estado das avarias que já reportaste.
+                    </p>
+                    <a href="{% url 'equipamentos:minhas_avarias' %}" class="btn btn-outline-primary w-100">
+                        Ver minhas avarias
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title h5">
+                        <i class="bi bi-pc-display"></i>Inventário
+                    </h3>
+                    <p class="card-text flex-grow-1">
+                        Consulta os equipamentos, as fichas e os respetivos QR codes.
+                    </p>
+                    <a href="{% url 'equipamentos:equipamentos_lista' %}" class="btn btn-outline-primary w-100">
+                        Abrir inventário
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if request.user.is_superuser or request.user.perfil.papel == "tecnico" or request.user.perfil.papel == "admin" %}
+            <div class="col-12">
+                <h2 class="h5 text-uppercase text-muted mb-0">Área técnica</h2>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="card-title h5">
+                            <i class="bi bi-wrench-adjustable"></i>Gestão de avarias
+                        </h3>
+                        <p class="card-text flex-grow-1">
+                            Atribui, acompanha e resolve as avarias do laboratório.
+                        </p>
+                        <a href="{% url 'equipamentos:avarias_lista' %}" class="btn btn-outline-primary w-100">
+                            Gerir avarias
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="card-title h5">
+                            <i class="bi bi-bar-chart-line"></i>Dashboard
+                        </h3>
+                        <p class="card-text flex-grow-1">
+                            Consulta os indicadores e a distribuição por estado.
+                        </p>
+                        <a href="{% url 'equipamentos:dashboard' %}" class="btn btn-outline-primary w-100">
+                            Abrir dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="card-title h5">
+                            <i class="bi bi-qr-code"></i>Etiquetas QR
+                        </h3>
+                        <p class="card-text flex-grow-1">
+                            Prepara a folha A4 com as etiquetas dos equipamentos.
+                        </p>
+                        <a href="{% url 'equipamentos:etiquetas' %}" class="btn btn-outline-primary w-100">
+                            Abrir etiquetas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
 {% endblock %}

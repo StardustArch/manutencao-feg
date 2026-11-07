@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -5,47 +6,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Manutenção UCM-FEG{% endblock %}</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/bootstrap-icons.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/ucm-theme.css' %}">
 
     {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <header class="container">
-        <nav>
-            <ul>
-                <li><a href="{% url 'home' %}"><strong>UCM-FEG Manutenção</strong></a></li>
-                <li><a href="{% url 'home' %}">Início</a></li>
-                <li><a href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a></li>
-                {% if request.user.is_superuser or request.user.perfil.papel == "tecnico" or request.user.perfil.papel == "admin" %}
-                    <li><a href="{% url 'equipamentos:avarias_lista' %}">Avarias</a></li>
-                    <li><a href="{% url 'equipamentos:dashboard' %}">Dashboard</a></li>
-                {% endif %}
-                <li><a href="{% url 'equipamentos:reportar_avaria' %}">Reportar avaria</a></li>
-                <li><a href="{% url 'equipamentos:minhas_avarias' %}">Minhas avarias</a></li>
-            </ul>
-            <ul>
-                <li>
-                    Olá, <strong>{{ request.user.username }}</strong>
-                    {% if request.user.perfil %}
-                        (<small>{{ request.user.perfil.get_papel_display }}</small>)
-                    {% endif %}
-                </li>
-                <li>
-                    <form action="{% url 'contas:logout' %}" method="post" style="margin: 0;">
-                        {% csrf_token %}
-                        <button type="submit" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;">
-                            Sair
-                        </button>
-                    </form>
-                </li>
-            </ul>
-        </nav>
+    <header class="ucm-topbar">
+        <div class="container d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
+            <a class="d-flex align-items-center gap-2 text-white text-decoration-none" href="{% url 'home' %}">
+                <img src="{% static 'img/logo-ucm.png' %}" alt="Logótipo UCM" onerror="this.style.display='none';">
+                <span class="brand-title">Manutenção de Equipamentos · UCM-FEG</span>
+            </a>
+
+            {% if request.user.is_authenticated %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-light dropdown-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        <i class="bi bi-person-circle me-1"></i>{{ request.user.username }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <span class="dropdown-item-text small text-muted">
+                                {% if request.user.perfil %}
+                                    {{ request.user.perfil.get_papel_display }}
+                                {% else %}
+                                    Utilizador
+                                {% endif %}
+                            </span>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form action="{% url 'contas:logout' %}" method="post" class="m-0">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item">
+                                    <i class="bi bi-box-arrow-right me-1"></i>Terminar sessão
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
     </header>
 
-    <main class="container">
+    {% if request.user.is_authenticated %}
+        <nav class="ucm-nav navbar navbar-expand-lg navbar-dark">
+            <div class="container">
+                <button class="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#ucm-navbar"
+                        aria-controls="ucm-navbar"
+                        aria-expanded="false"
+                        aria-label="Abrir menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="ucm-navbar">
+                    {% with vista=request.resolver_match.view_name %}
+                        <ul class="navbar-nav me-auto">
+                            <li class="nav-item">
+                                <a class="nav-link {% if vista == 'home' %}active{% endif %}"
+                                   {% if vista == 'home' %}aria-current="page"{% endif %}
+                                   href="{% url 'home' %}">Início</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if vista == 'equipamentos:equipamentos_lista' or vista == 'equipamentos:equipamento_detalhe' or vista == 'equipamentos:etiquetas' %}active{% endif %}"
+                                   {% if vista == 'equipamentos:equipamentos_lista' or vista == 'equipamentos:equipamento_detalhe' or vista == 'equipamentos:etiquetas' %}aria-current="page"{% endif %}
+                                   href="{% url 'equipamentos:equipamentos_lista' %}">Inventário</a>
+                            </li>
+                            {% if request.user.is_superuser or request.user.perfil.papel == "tecnico" or request.user.perfil.papel == "admin" %}
+                                <li class="nav-item">
+                                    <a class="nav-link {% if vista == 'equipamentos:avarias_lista' or vista == 'equipamentos:avaria_detalhe' %}active{% endif %}"
+                                       {% if vista == 'equipamentos:avarias_lista' or vista == 'equipamentos:avaria_detalhe' %}aria-current="page"{% endif %}
+                                       href="{% url 'equipamentos:avarias_lista' %}">Avarias</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {% if vista == 'equipamentos:dashboard' %}active{% endif %}"
+                                       {% if vista == 'equipamentos:dashboard' %}aria-current="page"{% endif %}
+                                       href="{% url 'equipamentos:dashboard' %}">Dashboard</a>
+                                </li>
+                            {% endif %}
+                            <li class="nav-item">
+                                <a class="nav-link {% if vista == 'equipamentos:reportar_avaria' or vista == 'equipamentos:reportar_avaria_equipamento' %}active{% endif %}"
+                                   {% if vista == 'equipamentos:reportar_avaria' or vista == 'equipamentos:reportar_avaria_equipamento' %}aria-current="page"{% endif %}
+                                   href="{% url 'equipamentos:reportar_avaria' %}">Reportar avaria</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link {% if vista == 'equipamentos:minhas_avarias' %}active{% endif %}"
+                                   {% if vista == 'equipamentos:minhas_avarias' %}aria-current="page"{% endif %}
+                                   href="{% url 'equipamentos:minhas_avarias' %}">Minhas avarias</a>
+                            </li>
+                        </ul>
+                    {% endwith %}
+                </div>
+            </div>
+        </nav>
+    {% endif %}
+
+    {% block page_header %}
+        <header class="ucm-page-header">
+            <div class="container">
+                <h1>{% block page_title %}Manutenção UCM-FEG{% endblock %}</h1>
+                {% block breadcrumb %}{% endblock %}
+            </div>
+        </header>
+    {% endblock %}
+
+    <main class="container py-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show"
+                     role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
         {% block content %}{% endblock %}
     </main>
 
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

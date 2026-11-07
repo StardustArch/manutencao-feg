@@ -1,202 +1,92 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Gestão de Avarias - Manutenção UCM-FEG{% endblock %}
 
-{% block extra_head %}
-<style>
-        /* Pequenos ajustes de apresentação, sem introduzir frameworks pesados. */
-        .badge {
-            display: inline-block;
-            padding: 0.22rem 0.6rem;
-            border-radius: 999px;
-            color: #fff;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.02em;
-            white-space: nowrap;
-        }
+{% block page_title %}Gestão de Avarias{% endblock %}
 
-        /* Cores do estado da avaria */
-        .badge-pendente     { background: #b45309; }
-        .badge-em_reparacao { background: #1d4ed8; }
-        .badge-resolvido    { background: #15803d; }
-        .badge-cancelado    { background: #4b5563; }
-
-        /* Cores da prioridade */
-        .badge-baixa    { background: #4b5563; }
-        .badge-media    { background: #b45309; }
-        .badge-alta     { background: #c2410c; }
-        .badge-urgente  { background: #b91c1c; }
-
-        .resumo-avarias article {
-            margin-bottom: 0;
-            padding: 1rem 1.1rem;
-            border-left: 5px solid var(--pico-muted-border-color);
-        }
-
-        .resumo-avarias small {
-            display: block;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-size: 0.68rem;
-        }
-
-        .resumo-avarias strong {
-            font-size: 1.7rem;
-            line-height: 1.1;
-        }
-
-        .resumo-avarias .resumo-pendente     { border-left-color: #b45309; }
-        .resumo-avarias .resumo-reparacao    { border-left-color: #1d4ed8; }
-        .resumo-avarias .resumo-resolvida    { border-left-color: #15803d; }
-        .resumo-avarias .resumo-urgente      { border-left-color: #b91c1c; }
-
-        .filtros-avarias {
-            margin-bottom: 1.25rem;
-        }
-
-        .filtros-avarias .filtro-botoes {
-            display: flex;
-            gap: 0.6rem;
-            align-items: end;
-            padding-bottom: 0.15rem;
-        }
-
-        .filtros-avarias .filtro-botoes > * {
-            margin-bottom: 0;
-        }
-
-        .filtros-avarias .filtro-botoes a[role="button"] {
-            width: auto;
-            white-space: nowrap;
-        }
-
-        .tabela-avarias {
-            min-width: 960px;
-        }
-
-        .tabela-avarias td,
-        .tabela-avarias th {
-            vertical-align: middle;
-        }
-
-        .acoes-avaria {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            align-items: center;
-        }
-
-        .acoes-avaria form {
-            margin: 0;
-        }
-
-        .acoes-avaria select {
-            margin: 0;
-            min-width: 150px;
-            height: auto;
-            padding: 0.4rem 0.6rem;
-            font-size: 0.82rem;
-        }
-
-        .acoes-avaria button {
-            margin: 0;
-            width: auto;
-            padding: 0.42rem 0.8rem;
-            font-size: 0.82rem;
-            white-space: nowrap;
-        }
-
-        .mensagem {
-            margin-bottom: 1rem;
-            padding: 0.8rem 1rem;
-            border-radius: var(--pico-border-radius);
-        }
-
-        .mensagem-success { background: #dcfce7; color: #14532d; }
-        .mensagem-error   { background: #fee2e2; color: #7f1d1d; }
-        .mensagem-warning { background: #fef3c7; color: #78350f; }
-        .mensagem-info    { background: #dbeafe; color: #1e3a8a; }
-
-        .texto-suave {
-            color: var(--pico-muted-color);
-            font-size: 0.82rem;
-        }
-    
-</style>
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Início</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Avarias</li>
+        </ol>
+    </nav>
 {% endblock %}
 
 {% block content %}
-        <hgroup>
-            <h1>Gestão de Avarias</h1>
-            <p>Consulta, atribuição de técnicos e atualização do estado das avarias do laboratório.</p>
-        </hgroup>
+    <p class="text-muted">
+        Consulta, atribuição de técnicos e atualização do estado das avarias do laboratório.
+    </p>
 
-        <div style="display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 1.25rem;">
-            <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=avarias"
-               role="button" class="outline" style="width: auto;">
-                Exportar avarias (PDF)
-            </a>
-            <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=inventario"
-               role="button" class="outline secondary" style="width: auto;">
-                Exportar inventário (PDF)
-            </a>
-        </div>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=avarias"
+           class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Exportar avarias (PDF)
+        </a>
+        <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=inventario"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Exportar inventário (PDF)
+        </a>
+    </div>
 
-        <!--
-            Formulário de filtros.
-            - Sem HTMX funciona como GET normal (botão "Filtrar").
-            - Com HTMX, o evento "change" atualiza apenas o bloco #avarias-conteudo.
-            - hx-push-url mantém o URL com os filtros para podermos partilhar/recarregar.
-        -->
-        <form class="filtros-avarias"
-              method="get"
-              action="{% url 'equipamentos:avarias_lista' %}"
-              hx-get="{% url 'equipamentos:avarias_lista' %}"
-              hx-target="#avarias-conteudo"
-              hx-swap="outerHTML"
-              hx-trigger="change, submit"
-              hx-push-url="true">
-            <div class="grid">
-                <label for="filtro-estado">
-                    Estado
-                    <select id="filtro-estado" name="estado">
-                        <option value="">Todos os estados</option>
-                        {% for valor, rotulo in estados %}
-                            <option value="{{ valor }}" {% if estado_atual == valor %}selected{% endif %}>
-                                {{ rotulo }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </label>
+    <!--
+        Formulário de filtros.
+        - Sem HTMX funciona como GET normal (botão "Filtrar").
+        - Com HTMX, o evento "change" atualiza apenas o bloco #avarias-conteudo.
+        - hx-push-url mantém o URL com os filtros para podermos partilhar/recarregar.
+    -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get"
+                  action="{% url 'equipamentos:avarias_lista' %}"
+                  hx-get="{% url 'equipamentos:avarias_lista' %}"
+                  hx-target="#avarias-conteudo"
+                  hx-swap="outerHTML"
+                  hx-trigger="change, submit"
+                  hx-push-url="true">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-4">
+                        <label for="filtro-estado" class="form-label">Estado</label>
+                        <select id="filtro-estado" name="estado" class="form-select">
+                            <option value="">Todos os estados</option>
+                            {% for valor, rotulo in estados %}
+                                <option value="{{ valor }}" {% if estado_atual == valor %}selected{% endif %}>
+                                    {{ rotulo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <label for="filtro-prioridade">
-                    Prioridade
-                    <select id="filtro-prioridade" name="prioridade">
-                        <option value="">Todas as prioridades</option>
-                        {% for valor, rotulo in prioridades %}
-                            <option value="{{ valor }}" {% if prioridade_atual == valor %}selected{% endif %}>
-                                {{ rotulo }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </label>
+                    <div class="col-12 col-md-4">
+                        <label for="filtro-prioridade" class="form-label">Prioridade</label>
+                        <select id="filtro-prioridade" name="prioridade" class="form-select">
+                            <option value="">Todas as prioridades</option>
+                            {% for valor, rotulo in prioridades %}
+                                <option value="{{ valor }}" {% if prioridade_atual == valor %}selected{% endif %}>
+                                    {{ rotulo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-                <div class="filtro-botoes">
-                    <button type="submit" class="outline">Filtrar</button>
-                    <a href="{% url 'equipamentos:avarias_lista' %}" role="button" class="secondary outline">
-                        Limpar
-                    </a>
+                    <div class="col-12 col-md-4">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Filtrar</button>
+                            <a href="{% url 'equipamentos:avarias_lista' %}" class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </form>
+            </form>
+        </div>
+    </div>
 
-        <!-- Este bloco é substituído pelo HTMX. O partial tem exatamente o mesmo id. -->
-        {% include "equipamentos/partials/_avarias_conteudo.html" %}
-    
+    <!-- Este bloco é substituído pelo HTMX. O partial tem exatamente o mesmo id. -->
+    {% include "equipamentos/partials/_avarias_conteudo.html" %}
 {% endblock %}
 
 {% block extra_js %}
-<!-- HTMX via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+    <script src="{% static 'vendor/htmx/htmx.min.js' %}"></script>
 {% endblock %}

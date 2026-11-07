@@ -10,7 +10,9 @@ class AvariaForm(forms.ModelForm):
         model = Avaria
         fields = ["descricao", "prioridade"]
         widgets = {
-            "descricao": forms.Textarea(attrs={"rows": 5}),
+            "descricao": forms.Textarea(
+                attrs={"rows": 5, "class": "form-control"}
+            ),
             "prioridade": forms.RadioSelect,
         }
         labels = {
@@ -26,7 +28,12 @@ class IntervencaoForm(forms.ModelForm):
         model = Intervencao
         fields = ["detalhes_reparacao", "pecas_substituidas"]
         widgets = {
-            "detalhes_reparacao": forms.Textarea(attrs={"rows": 4}),
+            "detalhes_reparacao": forms.Textarea(
+                attrs={"rows": 4, "class": "form-control"}
+            ),
+            "pecas_substituidas": forms.Textarea(
+                attrs={"rows": 3, "class": "form-control"}
+            ),
         }
         labels = {
             "detalhes_reparacao": "Detalhes da reparação",
@@ -40,8 +47,9 @@ class CorrigirEstadoForm(forms.Form):
     estado = forms.ChoiceField(
         choices=Equipamento.ESTADO_EQUIPAMENTO_CHOICES,
         label="Novo estado",
+        widget=forms.Select(attrs={"class": "form-select"}),
     )
     motivo = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 2}),
+        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         label="Motivo",
     )

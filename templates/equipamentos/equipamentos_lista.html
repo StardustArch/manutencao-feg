@@ -2,238 +2,160 @@
 
 {% block title %}Inventário - Manutenção UCM-FEG{% endblock %}
 
-{% block extra_head %}
-<style>
-        .badge {
-            display: inline-block;
-            padding: 0.22rem 0.6rem;
-            border-radius: 999px;
-            color: #fff;
-            font-size: 0.72rem;
-            font-weight: 700;
-            white-space: nowrap;
-        }
+{% block page_title %}Inventário de Equipamentos{% endblock %}
 
-        .badge-estado-operacional { background: #15803d; }
-        .badge-estado-avariado    { background: #b91c1c; }
-        .badge-estado-manutencao  { background: #1d4ed8; }
-        .badge-estado-abatido     { background: #6b7280; }
-
-        .acoes-topo {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-            align-items: center;
-            margin-bottom: 1.25rem;
-        }
-
-        .acoes-topo > * {
-            margin: 0;
-        }
-
-        .filtros-inventario {
-            margin-bottom: 1.25rem;
-        }
-
-        .filtros-inventario .botoes-filtro {
-            display: flex;
-            gap: 0.6rem;
-            align-items: end;
-            padding-bottom: 0.15rem;
-        }
-
-        .filtros-inventario .botoes-filtro > * {
-            margin-bottom: 0;
-        }
-
-        .filtros-inventario a[role="button"] {
-            width: auto;
-            white-space: nowrap;
-        }
-
-        .tabela-inventario {
-            min-width: 980px;
-        }
-
-        .tabela-inventario td,
-        .tabela-inventario th {
-            vertical-align: middle;
-        }
-
-        .qr-miniatura {
-            image-rendering: pixelated;
-            background: #fff;
-            border: 1px solid var(--pico-muted-border-color);
-            border-radius: 6px;
-            padding: 3px;
-        }
-
-        .texto-suave {
-            color: var(--pico-muted-color);
-            font-size: 0.82rem;
-        }
-
-        .contador-avarias {
-            display: inline-block;
-            min-width: 1.6rem;
-            padding: 0.15rem 0.45rem;
-            border-radius: 999px;
-            background: #fef3c7;
-            color: #78350f;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-align: center;
-        }
-    
-</style>
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}">Início</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Inventário</li>
+        </ol>
+    </nav>
 {% endblock %}
 
 {% block content %}
-        <hgroup>
-            <h1>Inventário de Equipamentos</h1>
-            <p>
-                Consulta do parque informático do laboratório. Cada equipamento tem
-                um QR code que abre diretamente a sua ficha de manutenção.
-            </p>
-        </hgroup>
+    <p class="text-muted">
+        Consulta do parque informático do laboratório. Cada equipamento tem
+        um QR code que abre diretamente a sua ficha de manutenção.
+    </p>
 
-        <div class="acoes-topo">
-            {% if e_tecnico_ou_admin %}
-                <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=inventario"
-                   role="button" class="outline">
-                    Exportar inventário (PDF)
-                </a>
-                <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=avarias"
-                   role="button" class="outline secondary">
-                    Exportar avarias (PDF)
-                </a>
-                <a href="{% url 'equipamentos:etiquetas' %}"
-                   role="button" class="outline">
-                    Etiquetas
-                </a>
-            {% endif %}
-            {% if e_tecnico_ou_admin %}
-                <a href="{% url 'equipamentos:avarias_lista' %}" role="button" class="secondary outline">
-                    Ver avarias
-                </a>
+    {% if e_tecnico_ou_admin %}
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=inventario"
+               class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Exportar inventário (PDF)
+            </a>
+            <a href="{% url 'equipamentos:relatorio_pdf' %}?tipo=avarias"
+               class="btn btn-outline-secondary">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Exportar avarias (PDF)
+            </a>
+            <a href="{% url 'equipamentos:etiquetas' %}" class="btn btn-outline-primary">
+                <i class="bi bi-qr-code me-1"></i>Etiquetas
+            </a>
+            <a href="{% url 'equipamentos:avarias_lista' %}" class="btn btn-outline-secondary">
+                Ver avarias
+            </a>
+        </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{% url 'equipamentos:equipamentos_lista' %}">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-6">
+                        <label for="pesquisa" class="form-label">Pesquisar</label>
+                        <input type="search"
+                               class="form-control"
+                               id="pesquisa"
+                               name="q"
+                               value="{{ pesquisa }}"
+                               placeholder="Código, marca/modelo ou localização">
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <label for="filtro-estado" class="form-label">Estado</label>
+                        <select id="filtro-estado" name="estado" class="form-select">
+                            <option value="">Todos os estados</option>
+                            {% for valor, rotulo in estados %}
+                                <option value="{{ valor }}" {% if estado_atual == valor %}selected{% endif %}>
+                                    {{ rotulo }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-3">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Pesquisar</button>
+                            <a href="{% url 'equipamentos:equipamentos_lista' %}" class="btn btn-outline-secondary">
+                                Limpar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <strong>{{ equipamentos|length }} equipamento{{ equipamentos|length|pluralize:"s" }}</strong>
+            {% if pesquisa or estado_atual %}
+                <small class="text-muted">
+                    — filtros aplicados
+                    {% if pesquisa %}(pesquisa: "{{ pesquisa }}"){% endif %}
+                    {% if estado_atual %}(estado: {{ estado_atual_display }}){% endif %}
+                </small>
             {% endif %}
         </div>
 
-        <form class="filtros-inventario" method="get" action="{% url 'equipamentos:equipamentos_lista' %}">
-            <div class="grid">
-                <label for="pesquisa">
-                    Pesquisar
-                    <input type="search"
-                           id="pesquisa"
-                           name="q"
-                           value="{{ pesquisa }}"
-                           placeholder="Código, marca/modelo ou localização">
-                </label>
-
-                <label for="filtro-estado">
-                    Estado
-                    <select id="filtro-estado" name="estado">
-                        <option value="">Todos os estados</option>
-                        {% for valor, rotulo in estados %}
-                            <option value="{{ valor }}" {% if estado_atual == valor %}selected{% endif %}>
-                                {{ rotulo }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </label>
-
-                <div class="botoes-filtro">
-                    <button type="submit" class="outline">Pesquisar</button>
-                    <a href="{% url 'equipamentos:equipamentos_lista' %}" role="button" class="secondary outline">
-                        Limpar
-                    </a>
-                </div>
-            </div>
-        </form>
-
-        <article>
-            <header>
-                <strong>{{ equipamentos|length }} equipamento{{ equipamentos|length|pluralize:"s" }}</strong>
-                {% if pesquisa or estado_atual %}
-                    <small class="texto-suave">
-                        — filtros aplicados
-                        {% if pesquisa %}(pesquisa: "{{ pesquisa }}"){% endif %}
-                        {% if estado_atual %}(estado: {{ estado_atual_display }}){% endif %}
-                    </small>
-                {% endif %}
-            </header>
-
-            <div style="overflow-x: auto;">
-                <table class="striped tabela-inventario">
-                    <thead>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Equipamento</th>
+                        <th scope="col">Tipo</th>
+                        <th scope="col">Localização</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Avarias abertas</th>
+                        <th scope="col">QR code</th>
+                        <th scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for equipamento in equipamentos %}
                         <tr>
-                            <th scope="col">Equipamento</th>
-                            <th scope="col">Tipo</th>
-                            <th scope="col">Localização</th>
-                            <th scope="col">Estado</th>
-                            <th scope="col">Avarias abertas</th>
-                            <th scope="col">QR code</th>
-                            <th scope="col">Ações</th>
+                            <td>
+                                <strong>{{ equipamento.codigo }}</strong><br>
+                                <small class="text-muted">{{ equipamento.marca_modelo }}</small>
+                            </td>
+                            <td>{{ equipamento.get_tipo_display }}</td>
+                            <td>
+                                <small class="text-muted">{{ equipamento.localizacao }}</small>
+                            </td>
+                            <td>
+                                {% include "equipamentos/partials/_badge_equipamento.html" with estado=equipamento.estado rotulo=equipamento.get_estado_display %}
+                            </td>
+                            <td>
+                                {% if equipamento.avarias_abertas %}
+                                    <span class="badge rounded-pill text-bg-warning">{{ equipamento.avarias_abertas }}</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <img class="img-thumbnail"
+                                     src="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
+                                     width="86"
+                                     height="86"
+                                     loading="lazy"
+                                     alt="QR code do equipamento {{ equipamento.codigo }}">
+                            </td>
+                            <td>
+                                <a href="{{ equipamento.get_absolute_url }}"
+                                   class="btn btn-sm btn-outline-primary text-nowrap">
+                                    Abrir ficha
+                                </a>
+                                <a href="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
+                                   download
+                                   class="d-block small text-muted mt-1">
+                                    Descarregar QR
+                                </a>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for equipamento in equipamentos %}
-                            <tr>
-                                <td>
-                                    <strong>{{ equipamento.codigo }}</strong><br>
-                                    <small>{{ equipamento.marca_modelo }}</small>
-                                </td>
-                                <td>{{ equipamento.get_tipo_display }}</td>
-                                <td>
-                                    <small>{{ equipamento.localizacao }}</small>
-                                </td>
-                                <td>
-                                    <span class="badge badge-estado-{{ equipamento.estado }}">
-                                        {{ equipamento.get_estado_display }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% if equipamento.avarias_abertas %}
-                                        <span class="contador-avarias">{{ equipamento.avarias_abertas }}</span>
-                                    {% else %}
-                                        <span class="texto-suave">0</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <img class="qr-miniatura"
-                                         src="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
-                                         width="86"
-                                         height="86"
-                                         loading="lazy"
-                                         alt="QR code do equipamento {{ equipamento.codigo }}">
-                                </td>
-                                <td>
-                                    <a href="{{ equipamento.get_absolute_url }}" role="button" class="outline"
-                                       style="width: auto; white-space: nowrap;">
-                                        Abrir ficha
-                                    </a>
-                                    <a href="{% url 'equipamentos:equipamento_qrcode' equipamento.pk %}"
-                                       download
-                                       class="texto-suave"
-                                       style="display: block; margin-top: 0.45rem;">
-                                        Descarregar QR
-                                    </a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="7">
-                                    <p><strong>Nenhum equipamento encontrado.</strong></p>
-                                    <p class="texto-suave">
-                                        Experimenta limpar os filtros ou registar equipamentos no
-                                        painel de administração.
-                                    </p>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">
+                                <p class="mb-1"><strong>Nenhum equipamento encontrado.</strong></p>
+                                <p class="text-muted mb-0">
+                                    Experimenta limpar os filtros ou registar equipamentos no
+                                    painel de administração.
+                                </p>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 {% endblock %}

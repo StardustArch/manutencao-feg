@@ -1,45 +1,62 @@
 <section id="avarias-conteudo" aria-live="polite">
-    <div class="grid resumo-avarias">
-        <article class="resumo-pendente">
-            <small>Pendentes</small>
-            <strong>{{ resumo.pendentes }}</strong>
-        </article>
-        <article class="resumo-reparacao">
-            <small>Em reparação</small>
-            <strong>{{ resumo.em_reparacao }}</strong>
-        </article>
-        <article class="resumo-resolvida">
-            <small>Resolvidas</small>
-            <strong>{{ resumo.resolvidas }}</strong>
-        </article>
-        <article class="resumo-urgente">
-            <small>Urgentes abertas</small>
-            <strong>{{ resumo.urgentes_abertas }}</strong>
-        </article>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-warning h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted">Pendentes</small>
+                    <p class="fs-3 fw-bold mb-0">{{ resumo.pendentes }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-primary h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted">Em reparação</small>
+                    <p class="fs-3 fw-bold mb-0">{{ resumo.em_reparacao }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-success h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted">Resolvidas</small>
+                    <p class="fs-3 fw-bold mb-0">{{ resumo.resolvidas }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="card border-start border-4 border-danger h-100">
+                <div class="card-body">
+                    <small class="text-uppercase text-muted">Urgentes abertas</small>
+                    <p class="fs-3 fw-bold mb-0">{{ resumo.urgentes_abertas }}</p>
+                </div>
+            </div>
+        </div>
     </div>
 
-    {% if messages %}
+    {% if request.META.HTTP_HX_REQUEST and messages %}
         {% for message in messages %}
-            <div class="mensagem mensagem-{{ message.tags }}" role="status">
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags == 'debug' %}secondary{% else %}{{ message.tags|default:'info' }}{% endif %}"
+                 role="status">
                 {{ message }}
             </div>
         {% endfor %}
     {% endif %}
 
-    <article>
-        <header>
+    <div class="card">
+        <div class="card-header">
             <strong>{{ avarias|length }} avaria{{ avarias|length|pluralize:"s" }}</strong>
             {% if estado_atual or prioridade_atual %}
-                <small class="texto-suave">
+                <small class="text-muted">
                     — filtros aplicados
                     {% if estado_atual %}(estado: {{ estado_atual_display }}){% endif %}
                     {% if prioridade_atual %}(prioridade: {{ prioridade_atual_display }}){% endif %}
                 </small>
             {% endif %}
-        </header>
+        </div>
 
-        <div style="overflow-x: auto;">
-            <table class="striped tabela-avarias">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
                         <th scope="col">Avaria / Equipamento</th>
@@ -59,40 +76,36 @@
                             <td>
                                 <strong>#{{ avaria.pk }}</strong><br>
                                 <small><strong>{{ avaria.equipamento.codigo }}</strong></small><br>
-                                <small>{{ avaria.equipamento.marca_modelo }}</small>
+                                <small class="text-muted">{{ avaria.equipamento.marca_modelo }}</small>
                             </td>
                             <td>
                                 {{ avaria.descricao|truncatechars:110 }}
                                 <br>
-                                <small class="texto-suave">
+                                <small class="text-muted">
                                     Reportada por
                                     {{ avaria.reportado_por.username|default:"—" }}
                                 </small>
                             </td>
                             <td>
-                                <span class="badge badge-{{ avaria.prioridade }}">
-                                    {{ avaria.get_prioridade_display }}
-                                </span>
+                                {% include "equipamentos/partials/_badge_prioridade.html" with prioridade=avaria.prioridade rotulo=avaria.get_prioridade_display %}
                             </td>
                             <td>
-                                <span class="badge badge-{{ avaria.estado }}">
-                                    {{ avaria.get_estado_display }}
-                                </span>
+                                {% include "equipamentos/partials/_badge_avaria.html" with estado=avaria.estado rotulo=avaria.get_estado_display %}
                             </td>
                             <td>
                                 {% if avaria.tecnico_atribuido %}
                                     {{ avaria.tecnico_atribuido.username }}
                                 {% else %}
-                                    <em class="texto-suave">Não atribuída</em>
+                                    <em class="text-muted">Não atribuída</em>
                                 {% endif %}
                             </td>
                             <td>
-                                <small>{{ avaria.data_registo|date:"d/m/Y H:i" }}</small>
+                                <small class="text-muted">{{ avaria.data_registo|date:"d/m/Y H:i" }}</small>
                             </td>
                             <td>
-                                <div class="acoes-avaria">
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
                                     <a href="{% url 'equipamentos:avaria_detalhe' avaria.pk %}"
-                                       class="texto-suave">
+                                       class="btn btn-sm btn-link p-0">
                                         Detalhe
                                     </a>
                                     {% if avaria.estado == "pendente" or avaria.estado == "em_reparacao" %}
@@ -102,12 +115,13 @@
                                                 O ?filtros... preserva os filtros ativos na resposta do HTMX.
                                             -->
                                             <form method="post"
+                                                  class="m-0"
                                                   action="{{ url_assumir }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
                                                   hx-post="{{ url_assumir }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
                                                   hx-target="#avarias-conteudo"
                                                   hx-swap="outerHTML">
                                                 {% csrf_token %}
-                                                <button type="submit" class="outline" hx-disabled-elt="this">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary" hx-disabled-elt="this">
                                                     Assumir avaria
                                                 </button>
                                             </form>
@@ -118,30 +132,33 @@
                                                     O botão "Aplicar" serve de fallback sem JavaScript.
                                                 -->
                                                 <form method="post"
+                                                      class="d-flex flex-wrap gap-2 m-0"
                                                       action="{{ url_estado }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
                                                       hx-post="{{ url_estado }}{% if filtros_querystring %}?{{ filtros_querystring }}{% endif %}"
                                                       hx-trigger="change, submit"
                                                       hx-target="#avarias-conteudo"
                                                       hx-swap="outerHTML">
                                                     {% csrf_token %}
-                                                    <select name="estado" aria-label="Alterar estado da avaria #{{ avaria.pk }}">
+                                                    <select name="estado"
+                                                            class="form-select form-select-sm w-auto"
+                                                            aria-label="Alterar estado da avaria #{{ avaria.pk }}">
                                                         <option value="" selected disabled>Alterar estado…</option>
                                                         {% for valor, rotulo in avaria.proximos_estados %}
                                                             <option value="{{ valor }}">{{ rotulo }}</option>
                                                         {% endfor %}
                                                     </select>
-                                                    <button type="submit" class="outline">Aplicar</button>
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary">Aplicar</button>
                                                 </form>
                                             {% else %}
-                                                <small class="texto-suave">Sem transições disponíveis.</small>
+                                                <small class="text-muted">Sem transições disponíveis.</small>
                                             {% endif %}
                                         {% else %}
-                                            <small class="texto-suave">
+                                            <small class="text-muted">
                                                 Atribuída a {{ avaria.tecnico_atribuido.username }}.
                                             </small>
                                         {% endif %}
                                     {% else %}
-                                        <small class="texto-suave">Processo concluído.</small>
+                                        <small class="text-muted">Processo concluído.</small>
                                     {% endif %}
                                 </div>
                             </td>
@@ -149,8 +166,8 @@
                     {% empty %}
                         <tr>
                             <td colspan="7">
-                                <p><strong>Nenhuma avaria encontrada.</strong></p>
-                                <p class="texto-suave">
+                                <p class="mb-1"><strong>Nenhuma avaria encontrada.</strong></p>
+                                <p class="text-muted mb-0">
                                     Experimenta limpar os filtros ou reportar uma nova avaria.
                                 </p>
                             </td>
@@ -159,5 +176,5 @@
                 </tbody>
             </table>
         </div>
-    </article>
+    </div>
 </section>

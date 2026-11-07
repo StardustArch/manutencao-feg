@@ -1,0 +1,46 @@
+:root {
+  --ucm-primary: #2d2a8c;
+  --ucm-primary-dark: #23216f;
+  --ucm-nav: #343a40;
+  --ucm-bg: #f8f9fa;
+  --ucm-action: #3b8de0;
+
+  --bs-primary: var(--ucm-primary);
+  --bs-primary-rgb: 45, 42, 140;
+  --bs-link-color: var(--ucm-action);
+  --bs-border-radius: 0.125rem;
+  --bs-border-radius-sm: 0.1rem;
+  --bs-border-radius-lg: 0.2rem;
+}
+
+body { background: var(--ucm-bg); }
+
+/* botões planos, como no portal */
+.btn-primary {
+  --bs-btn-bg: var(--ucm-action);
+  --bs-btn-border-color: var(--ucm-action);
+  --bs-btn-hover-bg: #2f78c4;
+  --bs-btn-hover-border-color: #2f78c4;
+  --bs-btn-active-bg: #2a6bb0;
+  --bs-btn-active-border-color: #2a6bb0;
+}
+
+/* barra de topo */
+.ucm-topbar { background: var(--ucm-primary); color: #fff; }
+.ucm-topbar .brand-title { line-height: 1.15; letter-spacing: .04em; text-transform: uppercase; font-size: .95rem; }
+.ucm-topbar img { height: 44px; }
+
+/* navegação */
+.ucm-nav { background: var(--ucm-nav); }
+.ucm-nav .nav-link { color: #fff; text-transform: uppercase; font-size: .85rem; letter-spacing: .03em; padding: 1rem .9rem; }
+.ucm-nav .nav-link:hover, .ucm-nav .nav-link.active { background: rgba(255,255,255,.1); }
+
+/* faixa de título + tira escura por baixo */
+.ucm-page-header { background: var(--ucm-primary); color: #fff; padding: 1.5rem 0 1.25rem; border-bottom: 28px solid var(--ucm-nav); }
+.ucm-page-header h1 { font-size: 1.5rem; font-weight: 400; margin: 0 0 .75rem; }
+.ucm-page-header .breadcrumb { margin: 0; --bs-breadcrumb-divider-color: rgba(255,255,255,.6); }
+.ucm-page-header .breadcrumb a, .ucm-page-header .breadcrumb-item.active { color: #fff; }
+
+/* cartões */
+.card { border-radius: 0; border: 1px solid #dee2e6; box-shadow: none; }
+.card-title i { margin-right: .4rem; }
