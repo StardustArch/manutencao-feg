@@ -203,28 +203,6 @@ se destina. As imagens referenciadas com `![]` já existem no repositório.
 | Dashboard (Técnico/Admin) | ![Dashboard](static/img/indicadores_equipamentos_dashboard_(Nest%20Hub%20Max).png) |
 | Gestão de avarias (Técnico/Admin) | ![Lista de avarias](static/img/lista_equipamentos_avarias_(Nest%20Hub%20Max).png) |
 
-Outras telas que podem ser capturadas para completar a demonstração (não existem
-ainda como ficheiro no repositório — adicione-as em `static/img/` e referencie
-da mesma forma):
-
-- Login (visitante): formulário de utilizador/password e botão "Entrar com Google".
-- Início — Utilizador: cartões "Reportar avaria", "Minhas avarias", "Inventário".
-- Início — Técnico: mesmo que acima, mais a área técnica (Gestão de avarias,
-  Dashboard, Etiquetas QR).
-- Inventário: lista de equipamentos com código, tipo, localização, estado (badge)
-  e thumbnail do QR code.
-- Minhas avarias: lista das avarias reportadas pelo utilizador autenticado.
-- Detalhe da avaria: dados da avaria, lista de intervenções e formulário
-  "Registar intervenção".
-- Corrigir estado (Admin): formulário de correção manual do estado do equipamento
-  (estado + motivo).
-
-> **Nota:** as capturas foram tiradas utilizando os utilizadores demo
-> `admin`, `tecnico1` e `utilizador1` (password `demo123` ou a definida em
-> `DEMO_PASSWORD`). Se não quiser commitar as imagens binárias no Git, adicione
-> `static/img/*.png` ao `.gitignore` e mantenha apenas as referências acima no
-> README.
-
 ## Testes
 
 ```bash
