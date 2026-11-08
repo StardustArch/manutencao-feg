@@ -191,29 +191,39 @@ manutencao/
 
 ## Demonstração (capturas de ecrã)
 
-As capturas de ecrã abaixo ajudam a ilustrar o sistema na monografia. Coloque os
-ficheiros de imagem na pasta `static/img/` com os nomes indicados; o nome de cada
-ficheiro identifica a tela e o perfil a que se destina.
+As capturas de ecrã abaixo ilustram o sistema na monografia. Os ficheiros estão
+na pasta `static/img/`; o nome de cada ficheiro identifica a tela e o perfil a que
+se destina. As imagens referenciadas com `![]` já existem no repositório.
 
-| Ficheiro em `static/img/` | Tela / perfil | O que deve mostrar |
-|---------------------------|---------------|--------------------|
-| `screenshot-login.png` | Login (visitante) | Formulário de utilizador/password e botão "Entrar com Google". |
-| `screenshot-home-utilizador.png` | Início — Utilizador | Cartões "Reportar avaria", "Minhas avarias", "Inventário". |
-| `screenshot-home-tecnico.png` | Início — Técnico | Mesmo que acima, mais a área técnica (Gestão de avarias, Dashboard, Etiquetas QR). |
-| `screenshot-inventario.png` | Inventário | Lista de equipamentos com código, tipo, localização, estado (badge) e thumbnail do QR code. |
-| `screenshot-ficha-equipamento.png` | Ficha do equipamento | Dados do equipamento, QR code grande, histórico de avarias e histórico de estados. |
-| `screenshot-reportar-avaria.png` | Reportar avaria | Formulário com seleção do equipamento, descrição e prioridade. |
-| `screenshot-minhas-avarias.png` | Minhas avarias | Lista das avarias reportadas pelo utilizador autenticado. |
-| `screenshot-avarias-lista.png` | Gestão de avarias (Técnico/Admin) | Tabela de avarias com filtros HTMX por estado e prioridade, botão "Assumir avaria" e select "Alterar estado…". |
-| `screenshot-avaria-detalhe.png` | Detalhe da avaria | Dados da avaria, lista de intervenções e formulário "Registar intervenção". |
-| `screenshot-dashboard.png` | Dashboard (Técnico/Admin) | Cartões de métricas e gráficos Chart.js (rosca de equipamentos, barras de avarias). |
-| `screenshot-etiquetas.png` | Etiquetas A4 (Técnico/Admin) | Folha A4 com 3×8 etiquetas QR para impressão. |
-| `screenshot-corrigir-estado.png` | Corrigir estado (Admin) | Formulário de correção manual do estado do equipamento (estado + motivo). |
+| Tela / perfil | Captura |
+|---------------|---------|
+| Reportar avaria | ![Reportar avaria](static/img/equipamentos_avarias_nova_(Nest%20Hub%20Max).png) |
+| Etiquetas A4 (Técnico/Admin) | ![Etiquetas A4](static/img/etiquetas_(Nest%20Hub%20Max).png) |
+| Ficha do equipamento | ![Ficha do equipamento](static/img/ficha_equipamentos_1_(Nest%20Hub%20Max).png) |
+| Dashboard (Técnico/Admin) | ![Dashboard](static/img/indicadores_equipamentos_dashboard_(Nest%20Hub%20Max).png) |
+| Gestão de avarias (Técnico/Admin) | ![Lista de avarias](static/img/lista_equipamentos_avarias_(Nest%20Hub%20Max).png) |
 
-> **Nota:** não foi possível gerar capturas de ecrã reais neste ambiente. Substitua os
-> ficheiros acima pelas capturas tiradas do sistema em execução (utilizando os
-> utilizadores demo `admin`, `tecnico1` e `utilizador1`, todos com password
-> `demo123` ou a definida em `DEMO_PASSWORD`).
+Outras telas que podem ser capturadas para completar a demonstração (não existem
+ainda como ficheiro no repositório — adicione-as em `static/img/` e referencie
+da mesma forma):
+
+- Login (visitante): formulário de utilizador/password e botão "Entrar com Google".
+- Início — Utilizador: cartões "Reportar avaria", "Minhas avarias", "Inventário".
+- Início — Técnico: mesmo que acima, mais a área técnica (Gestão de avarias,
+  Dashboard, Etiquetas QR).
+- Inventário: lista de equipamentos com código, tipo, localização, estado (badge)
+  e thumbnail do QR code.
+- Minhas avarias: lista das avarias reportadas pelo utilizador autenticado.
+- Detalhe da avaria: dados da avaria, lista de intervenções e formulário
+  "Registar intervenção".
+- Corrigir estado (Admin): formulário de correção manual do estado do equipamento
+  (estado + motivo).
+
+> **Nota:** as capturas foram tiradas utilizando os utilizadores demo
+> `admin`, `tecnico1` e `utilizador1` (password `demo123` ou a definida em
+> `DEMO_PASSWORD`). Se não quiser commitar as imagens binárias no Git, adicione
+> `static/img/*.png` ao `.gitignore` e mantenha apenas as referências acima no
+> README.
 
 ## Testes
 
