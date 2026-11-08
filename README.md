@@ -189,6 +189,32 @@ manutencao/
 - Gerir avarias, incluindo a reatribuição de técnicos diretamente na listagem do admin.
 - Gerir perfis de utilizador, alterando o papel diretamente na listagem do admin.
 
+## Demonstração (capturas de ecrã)
+
+As capturas de ecrã abaixo ajudam a ilustrar o sistema na monografia. Coloque os
+ficheiros de imagem na pasta `static/img/` com os nomes indicados; o nome de cada
+ficheiro identifica a tela e o perfil a que se destina.
+
+| Ficheiro em `static/img/` | Tela / perfil | O que deve mostrar |
+|---------------------------|---------------|--------------------|
+| `screenshot-login.png` | Login (visitante) | Formulário de utilizador/password e botão "Entrar com Google". |
+| `screenshot-home-utilizador.png` | Início — Utilizador | Cartões "Reportar avaria", "Minhas avarias", "Inventário". |
+| `screenshot-home-tecnico.png` | Início — Técnico | Mesmo que acima, mais a área técnica (Gestão de avarias, Dashboard, Etiquetas QR). |
+| `screenshot-inventario.png` | Inventário | Lista de equipamentos com código, tipo, localização, estado (badge) e thumbnail do QR code. |
+| `screenshot-ficha-equipamento.png` | Ficha do equipamento | Dados do equipamento, QR code grande, histórico de avarias e histórico de estados. |
+| `screenshot-reportar-avaria.png` | Reportar avaria | Formulário com seleção do equipamento, descrição e prioridade. |
+| `screenshot-minhas-avarias.png` | Minhas avarias | Lista das avarias reportadas pelo utilizador autenticado. |
+| `screenshot-avarias-lista.png` | Gestão de avarias (Técnico/Admin) | Tabela de avarias com filtros HTMX por estado e prioridade, botão "Assumir avaria" e select "Alterar estado…". |
+| `screenshot-avaria-detalhe.png` | Detalhe da avaria | Dados da avaria, lista de intervenções e formulário "Registar intervenção". |
+| `screenshot-dashboard.png` | Dashboard (Técnico/Admin) | Cartões de métricas e gráficos Chart.js (rosca de equipamentos, barras de avarias). |
+| `screenshot-etiquetas.png` | Etiquetas A4 (Técnico/Admin) | Folha A4 com 3×8 etiquetas QR para impressão. |
+| `screenshot-corrigir-estado.png` | Corrigir estado (Admin) | Formulário de correção manual do estado do equipamento (estado + motivo). |
+
+> **Nota:** não foi possível gerar capturas de ecrã reais neste ambiente. Substitua os
+> ficheiros acima pelas capturas tiradas do sistema em execução (utilizando os
+> utilizadores demo `admin`, `tecnico1` e `utilizador1`, todos com password
+> `demo123` ou a definida em `DEMO_PASSWORD`).
+
 ## Testes
 
 ```bash
