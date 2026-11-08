@@ -1,3 +1,5 @@
+import os
+
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 
@@ -9,7 +11,7 @@ from equipamentos.models import (
     recalcular_estado_equipamento,
 )
 
-PASSWORD_DEMO = "demo123"
+PASSWORD_DEMO = os.environ.get("DEMO_PASSWORD", "demo123")
 
 UTILIZADORES_DEMO = (
     {
@@ -242,6 +244,15 @@ class Command(BaseCommand):
             "Estados dos equipamentos verificados; correções aplicadas: "
             f"{corrigidos}."
         )
+
+        if PASSWORD_DEMO == "demo123":
+            self.stdout.write(
+                self.style.WARNING(
+                    "AVISO: a palavra-passe de demonstração está a usar o valor "
+                    "por defeito (demo123). Defina a variável de ambiente "
+                    "DEMO_PASSWORD em produção."
+                )
+            )
 
     def _garantir_utilizador(self, username, papel, telefone, superuser):
         utilizador, foi_criado = User.objects.get_or_create(

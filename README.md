@@ -195,3 +195,61 @@ manutencao/
 .venv/bin/python manage.py check
 .venv/bin/python manage.py test
 ```
+
+## Publicação no PythonAnywhere
+
+O projeto está preparado para ser executado em produção através de variáveis
+de ambiente. Em desenvolvimento, todas as variáveis têm valores seguros por
+omissão; em produção, defina-as no painel do PythonAnywhere (Web → Security /
+Environment variables) ou no ficheiro de ativar do virtualenv.
+
+### Variáveis de ambiente
+
+| Variável | Obrigatória | Descrição | Default |
+|----------|-------------|-----------|---------|
+| `DJANGO_SECRET_KEY` | Sim, em produção | Chave secreta do Django. Nunca use o valor de default em produção. | valor de desenvolvimento |
+| `DJANGO_DEBUG` | Não | `"True"` para modo depuração, `"False"` em produção. | `"True"` |
+| `DJANGO_ALLOWED_HOSTS` | Não | Hosts adicionais separados por vírgula. | — |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | Não | Origens confiáveis para CSRF, separadas por vírgula (ex: `https://seudominio.pythonanywhere.com`). | — |
+| `SITE_URL` | Não | URL público usado nos QR codes (ex: `https://seudominio.pythonanywhere.com`). | vazio (usa o host do pedido) |
+| `GOOGLE_CLIENT_ID` | Não, para login Google | Client ID da aplicação OAuth Google. | vazio |
+| `GOOGLE_CLIENT_SECRET` | Não, para login Google | Client secret da aplicação OAuth Google. | vazio |
+| `ALLOWED_EMAIL_DOMAINS` | Não | Domínios de email permitidos no login Google, separados por vírgula. | `ucm.ac.mz,estudante.ucm.ac.mz` |
+| `SITE_DOMAIN` | Não | Domínio inicial do registo `Site`. | `localhost:8000` |
+| `DEMO_PASSWORD` | Não | Palavra-passe das contas de demonstração do `seed_demo`. | `demo123` |
+
+Quando `DJANGO_DEBUG=False`, são ativadas automaticamente:
+- `SESSION_COOKIE_SECURE` e `CSRF_COOKIE_SECURE` (cookies apenas sobre HTTPS);
+- `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` (necessário atrás do proxy do PythonAnywhere);
+- `SECURE_SSL_REDIRECT` (força HTTPS).
+
+### Passos no PythonAnywhere
+
+1. Crie um web app do tipo "WSGI" com a versão do Python desejada (3.12).
+2. Crie um virtualenv e instale as dependências:
+   ```bash
+   python -m venv .venv
+   .venv/bin/pip install -r requirements.txt
+   ```
+3. Faça upload/clonagem do repositório (sem a pasta `.venv` nem `db.sqlite3`, que não estão no Git).
+4. Aplique as migrações e carregue dados de demonstração (opcional):
+   ```bash
+   .venv/bin/python manage.py migrate
+   .venv/bin/python manage.py seed_demo
+   ```
+5. Recolha os ficheiros estáticos (o Bootstrap, HTMX, Chart.js etc. já estão no repositório em `static/vendor/`):
+   ```bash
+   .venv/bin/python manage.py collectstatic --noinput
+   ```
+6. No painel do PythonAnywhere (Web):
+   - Defina o ficheiro WSGI para apontar a `config/wsgi.py`.
+   - Defina a URL estática (`/static/`) para a pasta `staticfiles/` gerada pelo `collectstatic`.
+   - Acrescente as variáveis de ambiente acima, incluindo o domínio da aplicação em `DJANGO_ALLOWED_HOSTS` e `DJANGO_CSRF_TRUSTED_ORIGINS`.
+   - Defina `DJANGO_DEBUG=False` e `DJANGO_SECRET_KEY` com um valor seguro.
+
+### Login Google em produção
+
+Configure as credenciais OAuth no Google Cloud Console com o redirect URI:
+`https://<seudominio>.pythonanywhere.com/accounts/google/login/callback/`
+e defina `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` como variáveis de ambiente.
+
