@@ -1,27 +1,51 @@
-# Ambiente virtual
+# =============================================================================
+# .gitignore — projeto Django (manutencao)
+# =============================================================================
+
+# Variáveis de ambiente (segredos locais — nunca commitar)
+.env
+.env.dev
+*.env
+
+# Virtual environment
 .venv/
 venv/
+ENV/
 env/
 
-# Bytecode e caches do Python/Django
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.pyright/
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Base de dados local de desenvolvimento
+# Banco de dados local
 db.sqlite3
 db.sqlite3-journal
+*.db
 
-# Ficheiros estáticos recolhidos e media
+# Ficheiros estáticos coletados
 staticfiles/
-media/
 
-# Ficheiros de sistema/editor
-.DS_Store
-Thumbs.db
+# IDE / SO
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
